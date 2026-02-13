@@ -1,0 +1,15 @@
+FROM ollama/ollama:latest
+
+WORKDIR /root
+
+# Ollama API port
+EXPOSE 11434
+
+# Don't pull at build time (slow, no progress, can hang). Pull on first container start.
+ENV OLLAMA_MODEL=qwen2.5-coder:3b
+ENV OLLAMA_VULKAN=1
+COPY entrypoint-ollama.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["ollama", "serve"]
