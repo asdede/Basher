@@ -1,5 +1,1 @@
-{
-    "fedora_docs": "https://docs.fedoraproject.org/en-US/docs/",
-    "man_pages": "https://linuxcommand.org/lc3_man_page_index.php",
-    "bash_docs": "https://www.gnu.org/software/bash/manual/bash.html"
-}
+{"fedora_quick_docs": {"type": "html_folder", "path": "docs/quick-docs"}}

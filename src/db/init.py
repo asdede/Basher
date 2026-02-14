@@ -5,14 +5,15 @@ from qdrant_client.models import PointStruct, VectorParams, Distance
 from data_gatherer import (
     get_embeddings_and_chunks,
     get_embeddings_and_chunks_from_urls,
+    get_embeddings_and_payloads_for_man_pages,
+    get_embeddings_and_payloads_for_docker_cli,
+    get_embeddings_and_payloads_from_html_folder,
     VECTOR_SIZE,
 )
 
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 DOCPAGES_CONFIG = os.environ.get("DOCPAGES_CONFIG", "config/docPages.json")
-CRAWL_MAX_PAGES = int(os.environ.get("CRAWL_MAX_PAGES", "50"))
-CRAWL_MAX_DEPTH = int(os.environ.get("CRAWL_MAX_DEPTH", "1"))
-CRAWL_DELAY_SEC = float(os.environ.get("CRAWL_DELAY_SEC", "1.5"))
+SCRAPE_DELAY_SEC = float(os.environ.get("CRAWL_DELAY_SEC", "1.5"))
 
 
 def _ensure_collection(qdrant, database):
@@ -25,14 +26,12 @@ def _ensure_collection(qdrant, database):
         )
 
 
-def init_db_from_urls(database, start_urls, qdrant):
-    """Crawl start_urls, embed, and upsert into the given collection."""
-    print(f"[{database}] Crawling up to {CRAWL_MAX_PAGES} pages (delay {CRAWL_DELAY_SEC}s)...")
+def init_db_from_urls(database, url_list, qdrant):
+    """Scrape the given URLs (one page each), embed, and upsert into the collection."""
+    print(f"[{database}] Scraping {len(url_list)} URL(s) (delay {SCRAPE_DELAY_SEC}s)...")
     embeddings, chunks = get_embeddings_and_chunks_from_urls(
-        start_urls,
-        max_pages=CRAWL_MAX_PAGES,
-        max_depth=CRAWL_MAX_DEPTH,
-        delay_sec=CRAWL_DELAY_SEC,
+        url_list,
+        delay_sec=SCRAPE_DELAY_SEC,
     )
     if not chunks:
         print(f"[{database}] No chunks from crawl. Skip.")
@@ -44,6 +43,64 @@ def init_db_from_urls(database, start_urls, qdrant):
     ]
     qdrant.upsert(collection_name=database, points=points)
     print(f"[{database}] Upserted {len(points)} points.")
+
+
+def init_db_from_man_pages(database, index_url, qdrant):
+    """Scrape man page index + detail pages, one point per command; payload has command, description, text."""
+    print(f"[{database}] Scraping man page index and detail pages (delay {SCRAPE_DELAY_SEC}s)...")
+    embeddings, payloads = get_embeddings_and_payloads_for_man_pages(
+        index_url,
+        delay_sec=SCRAPE_DELAY_SEC,
+    )
+    if not payloads:
+        print(f"[{database}] No man page entries. Skip.")
+        return
+    _ensure_collection(qdrant, database)
+    points = [
+        PointStruct(id=i, vector=vec.tolist(), payload=payload)
+        for i, (vec, payload) in enumerate(zip(embeddings, payloads))
+    ]
+    qdrant.upsert(collection_name=database, points=points)
+    print(f"[{database}] Upserted {len(points)} command entries.")
+
+
+def init_db_from_docker_cli(database, index_url, qdrant):
+    """Scrape Docker CLI reference (sidebar nav), one point per command; payload has command, description, text, source."""
+    print(f"[{database}] Scraping Docker CLI index and detail pages (delay {SCRAPE_DELAY_SEC}s)...")
+    embeddings, payloads = get_embeddings_and_payloads_for_docker_cli(
+        index_url,
+        delay_sec=SCRAPE_DELAY_SEC,
+    )
+    if not payloads:
+        print(f"[{database}] No Docker CLI entries. Skip.")
+        return
+    _ensure_collection(qdrant, database)
+    points = [
+        PointStruct(id=i, vector=vec.tolist(), payload=payload)
+        for i, (vec, payload) in enumerate(zip(embeddings, payloads))
+    ]
+    qdrant.upsert(collection_name=database, points=points)
+    print(f"[{database}] Upserted {len(points)} command entries.")
+
+
+def init_db_from_html_folder(database, path, qdrant):
+    """Load HTML files from a folder (e.g. AsciiDoc→HTML output), extract text, chunk, embed, upsert."""
+    resolved = os.path.abspath(path)
+    print(f"[{database}] Reading HTML folder: {path}")
+    if not os.path.isdir(resolved):
+        print(f"[{database}] Path does not exist or is not a directory: {resolved}. Skip.")
+        return
+    embeddings, payloads = get_embeddings_and_payloads_from_html_folder(path)
+    if not payloads:
+        print(f"[{database}] No .html or .adoc files found in '{resolved}'. Skip.")
+        return
+    _ensure_collection(qdrant, database)
+    points = [
+        PointStruct(id=i, vector=vec.tolist(), payload=payload)
+        for i, (vec, payload) in enumerate(zip(embeddings, payloads))
+    ]
+    qdrant.upsert(collection_name=database, points=points)
+    print(f"[{database}] Upserted {len(points)} chunks.")
 
 
 def init_db_from_folder(database, docs_folder, qdrant):
@@ -63,17 +120,38 @@ def init_db_from_folder(database, docs_folder, qdrant):
 
 def main(databases=None, docs_folder="docs"):
     qdrant = QdrantClient(url=QDRANT_URL)
-    # Prefer docPages.json: one collection per entry, crawl that URL
+    # docPages.json: { "collection_name": ["url1", "url2", ...] } — scrape only those URLs
     if os.path.isfile(DOCPAGES_CONFIG):
+        config_abspath = os.path.abspath(DOCPAGES_CONFIG)
+        # Paths in config are relative to project root (directory containing config/)
+        project_root = os.path.dirname(os.path.dirname(config_abspath))
         with open(DOCPAGES_CONFIG, "r", encoding="utf-8") as f:
             doc_pages = json.load(f)
-        for name, url in doc_pages.items():
-            if isinstance(url, str):
-                init_db_from_urls(name, url, qdrant)
-            elif isinstance(url, list):
-                init_db_from_urls(name, url, qdrant)
+        for name, val in doc_pages.items():
+            # Object: { "type": "html_folder", "path": "docs/quick-docs" } — path relative to project root
+            if isinstance(val, dict):
+                if val.get("type") == "html_folder" and val.get("path"):
+                    raw_path = val["path"]
+                    path = os.path.normpath(
+                        os.path.join(project_root, raw_path)
+                        if not os.path.isabs(raw_path)
+                        else raw_path
+                    )
+                    init_db_from_html_folder(name, path, qdrant)
+                elif val.get("type") == "docker_cli" and val.get("url"):
+                    init_db_from_docker_cli(name, val["url"], qdrant)
+                else:
+                    print(f"[{name}] Unknown or invalid object config. Skip.")
+                continue
+            # List of URLs (or single string)
+            urls = [val] if isinstance(val, str) else val
+            if not isinstance(urls, list) or not urls:
+                print(f"[{name}] Invalid or empty URL list. Skip.")
+                continue
+            if name == "man_pages":
+                init_db_from_man_pages(name, urls[0], qdrant)
             else:
-                print(f"[{name}] Invalid URL entry in config. Skip.")
+                init_db_from_urls(name, urls, qdrant)
         return
     # Fallback: init named collections from local docs folder
     if databases is None:
