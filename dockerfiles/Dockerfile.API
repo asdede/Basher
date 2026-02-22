@@ -5,6 +5,10 @@ WORKDIR /app
 COPY ./config/requirements-api.txt .
 RUN pip install --no-cache-dir -r requirements-api.txt
 
+RUN mkdir -p /app/eval
+COPY ./eval/__init__.py /app/eval/__init__.py
+COPY ./eval/dataset.json /app/eval/dataset.json
+COPY ./eval/run_evals.py /app/eval/run_evals.py
 COPY ./src/api/ .
-
+ENV ENVIRONMENT=DOCKER
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,12 +1,36 @@
 # Päiväkirja projektiin liittyen
 *Poistetaan*
 
+## 8.3.26
+- Evaluaatio apin työstöä
+- Lisätty 2 pisteytys kategoriaa
+
+## 7.3.26
+- Evaluaatio apin kehitystä
+- Otettu uusi heikommin suoriutuva mallin käyttöön, jotta pystytään paremmin seuraamaan RAG-koulutuksen tehokkuutta ja edistystä.
+- Huomattu mallin vaihdon myötä, että tietokanta ei ole läheskään kunnossa:
+    - Parannetaan vielä kysymyksiä ja luodaan 'base results' johon verrata ja pyöräytetään evaluointi läpi.
+    - Tämän jälkeen keskitytään tietokannan muokkaamiseen.
+
+## 26.2.26
+- Täydennetty Eval-settiä
+- Suunnittelua agent moodista ja taski kirjattu.
+
+## 23.2.26
+- Lisätty API:n endpointteihin vaihtoehto käyttää kielimallia ilman tietokantaa.
+- Lisätty Evaluointi pipelineen "basemodel_eval" ominaisuus. Pyörittää evaluointi setin läpi ilman tietokantaa. Tehty tulosten vertailuun.
+- Evaluointi apin luontia
+- Evaluointi datasetin parantelua.
+
 ## 22.2.26
 
 - Lisätty virheiden hallitaa
 - Lisätty tarkempaa dokumentaation .sh scriptiin
 - Lisätty uusi endpoint /health
 - Lueskelua RAG-koulutuksesta kielimallille.
+- Lisätty eval-datasetti (minimaalinen).
+- Lisätty putki, joka pyöräyttää evaluoinnin läpi ja tallentaa tulokset.
+- Selaimessa pyörivän evaluointi työkalun rakentelua
 
 ## 14.7.26
 
