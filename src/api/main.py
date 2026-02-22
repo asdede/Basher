@@ -17,6 +17,12 @@ qdrant = QdrantClient(url=QDRANT_URL)
 embedder = SentenceTransformer(EMBED_MODEL)
 
 
+@app.get("/health")
+def health():
+    """Health check for CLI and load balancers. Returns status 'ok' when the API is up."""
+    return {"status": "ok"}
+
+
 def _collect_chunks(q_vec, debug=False):
     """Search existing collections and return (chunks, any_searched, debug_info)."""
     chunks = []
