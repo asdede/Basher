@@ -1,6 +1,13 @@
 # Päiväkirja projektiin liittyen
 *Poistetaan*
 
+## 22.2.26
+
+- Lisätty virheiden hallitaa
+- Lisätty tarkempaa dokumentaation .sh scriptiin
+- Lisätty uusi endpoint /health
+- Lueskelua RAG-koulutuksesta kielimallille.
+
 ## 14.7.26
 
 ### Ohjelman työstöä
