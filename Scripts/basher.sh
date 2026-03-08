@@ -70,7 +70,9 @@ show_help() {
 
 cmd_start() {
   check_docker_running
-  # Always update the containers (Should not fill the cache but might, lets see)
+  # Run API as current user so eval/results files are writable by the host (e.g. eval-app saving scores)
+  export UID=$(id -u)
+  export GID=$(id -g)
   cd $BASHER_INSTALL_DIR
   docker compose up -d --build
 

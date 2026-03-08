@@ -61,7 +61,7 @@ export default function RunEvaluationPage() {
   }
 
   return (
-    <div className="container max-w-2xl py-8 space-y-6">
+    <div className="container max-w-2xl py-8 space-y-6 mx-auto">
       <h1 className="text-2xl font-semibold">Run Evaluation</h1>
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2">

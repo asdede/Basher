@@ -65,7 +65,7 @@ export default function PerformanceMonitorPage() {
 
   if (loading) {
     return (
-      <div className="container max-w-6xl py-10">
+      <div className="container max-w-6xl py-10 mx-auto">
         <h1 className="text-2xl font-bold mb-6">Performance Monitor</h1>
         <p className="text-muted-foreground">Loading…</p>
       </div>
@@ -74,7 +74,7 @@ export default function PerformanceMonitorPage() {
 
   if (error) {
     return (
-      <div className="container max-w-6xl py-10">
+      <div className="container max-w-6xl py-10 mx-auto">
         <h1 className="text-2xl font-bold mb-6">Performance Monitor</h1>
         <p className="text-destructive">{error}</p>
       </div>
@@ -117,7 +117,7 @@ export default function PerformanceMonitorPage() {
     : []
 
   return (
-    <div className="container max-w-6xl py-10 space-y-10">
+    <div className="container max-w-6xl py-10 space-y-10 mx-auto">
       <h1 className="text-2xl font-bold">Performance Monitor</h1>
       <p className="text-muted-foreground text-sm">
         Scores are 1–10; divide by 10 for percentage. Only runs with at least one scored item are included.
@@ -193,12 +193,12 @@ export default function PerformanceMonitorPage() {
       )}
 
       {latest && (
-        <div className="rounded-lg border bg-card p-4">
+        <div className="rounded-lg border bg-card p-4 mx-auto">
           <h2 className="text-lg font-semibold mb-2">Latest run</h2>
           <p className="text-sm text-muted-foreground mb-4">
             {latest.date} · {latest.scoredCount} item(s) scored
           </p>
-          <div className="h-[280px] w-full max-w-md">
+          <div className="h-[280px] w-full max-w-md mx-auto">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={barData}
