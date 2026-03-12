@@ -1,6 +1,12 @@
 # Päiväkirja projektiin liittyen
 *Poistetaan*
 
+## 12.3
+- Välidemo
+- Lisätty agentic chunking metodi
+- Lisätty git dokumentaatio
+
+
 ## 8.3.26
 - Evaluaatio apin työstöä
 - Lisätty 2 pisteytys kategoriaa
