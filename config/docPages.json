@@ -1,1 +1,28 @@
-{"fedora_quick_docs": {"type": "html_folder", "path": "docs/quick-docs"}}
+{
+  "fedora_quick_docs": {
+    "type": "html_folder",
+    "path": "docs/quick-docs"
+  },
+  "bash_docs": [
+    "https://man7.org/linux/man-pages/man1/bash.1.html"
+  ],
+  "git_docs": [
+    "https://git-scm.com/docs/git-status",
+    "https://git-scm.com/docs/git-add",
+    "https://git-scm.com/docs/git-commit",
+    "https://git-scm.com/docs/git-log",
+    "https://git-scm.com/docs/git-branch",
+    "https://git-scm.com/docs/git-diff",
+    "https://git-scm.com/docs/git-reset",
+    "https://git-scm.com/docs/git-reflog",
+    "https://git-scm.com/docs/git-rebase",
+    "https://git-scm.com/docs/git-cherry-pick",
+    "https://git-scm.com/docs/git-stash",
+    "https://git-scm.com/docs/git-remote"
+  ],
+  "docker_docs": {
+    "type": "docker_cli",
+    "url": "https://docs.docker.com/reference/cli/docker/"
+  },
+  "man_pages": ["https://linuxcommand.org/lc3_man_page_index.php"]
+}

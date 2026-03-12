@@ -1,0 +1,21 @@
+{
+  "_comment": "Toimivat lähteet – kopioi takaisin docPages.jsoniin tarvittaessa.",
+  "git_docs": [
+    "https://git-scm.com/docs/git-status",
+    "https://git-scm.com/docs/git-add",
+    "https://git-scm.com/docs/git-commit",
+    "https://git-scm.com/docs/git-log",
+    "https://git-scm.com/docs/git-branch",
+    "https://git-scm.com/docs/git-diff",
+    "https://git-scm.com/docs/git-reset",
+    "https://git-scm.com/docs/git-reflog",
+    "https://git-scm.com/docs/git-rebase",
+    "https://git-scm.com/docs/git-cherry-pick",
+    "https://git-scm.com/docs/git-stash",
+    "https://git-scm.com/docs/git-remote"
+  ],
+  "docker_docs": {
+    "type": "docker_cli",
+    "url": "https://docs.docker.com/reference/cli/docker/"
+  }
+}

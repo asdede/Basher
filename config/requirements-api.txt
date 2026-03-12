@@ -3,3 +3,4 @@ uvicorn
 requests
 qdrant-client
 sentence-transformers
+beautifulsoup4

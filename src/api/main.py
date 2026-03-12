@@ -40,7 +40,7 @@ OLLAMA_URL = "http://ollama:11434/api/generate"
 MODEL = "qwen2.5-coder:1.5b"
 QDRANT_URL = "http://qdrant:6333"
 EMBED_MODEL = "all-MiniLM-L6-v2"
-COLLECTIONS = ["fedora_quick_docs", "bash_docs", "man_pages", "docker_docs"]
+COLLECTIONS = ["fedora_quick_docs", "bash_docs", "man_pages", "docker_docs", "git_docs"]
 TOP_K = 10
 MIN_SCORE = 0.18  # Include borderline-relevant chunks; model can ignore noise
 

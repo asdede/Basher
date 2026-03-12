@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# Create user matching docker-compose user (UID 1000) so getpass.getuser() works
+# when PyTorch/transformers resolve cache paths (avoids KeyError: getpwuid uid not found)
+RUN groupadd -g 1000 app && useradd -m -u 1000 -g app app
+
 WORKDIR /app
 
 COPY ./config/requirements-api.txt .
@@ -10,5 +14,14 @@ COPY ./eval/__init__.py /app/eval/__init__.py
 COPY ./eval/dataset.json /app/eval/dataset.json
 COPY ./eval/run_evals.py /app/eval/run_evals.py
 COPY ./src/api/ .
+# For init: python -m src.db.init (scrape + embed into Qdrant)
+RUN mkdir -p /app/src/db
+COPY ./src/db/*.py /app/src/db/
+COPY ./config /app/config
+RUN mkdir -p /app/docs/quick-docs
+RUN touch /app/src/__init__.py /app/src/db/__init__.py
+ENV PYTHONPATH=/app
+ENV QDRANT_URL=http://qdrant:6333
+RUN chown -R app:app /app
 ENV ENVIRONMENT=DOCKER
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

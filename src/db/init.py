@@ -2,7 +2,7 @@ import json
 import os
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
-from data_gatherer import (
+from .data_gatherer import (
     get_embeddings_and_chunks,
     get_embeddings_and_chunks_from_urls,
     get_embeddings_and_payloads_for_man_pages,
