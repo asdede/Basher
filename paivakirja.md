@@ -1,6 +1,12 @@
 # Päiväkirja projektiin liittyen
 *Poistetaan*
 
+## 30.5
+- Lisätty gcc-c++
+- Tehty agenttinen terminaali. (Fedoran terminaali integroitu electroniin).
+- Parannettu mallin suorituskykyä huomattavasi parantamalla promptia mallille.
+- Lisätty 'agent' endpoint apiin ja mahdollistettu agenttinen toiminta.
+
 ## 12.3
 - Välidemo
 - Lisätty agentic chunking metodi

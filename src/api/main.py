@@ -6,11 +6,13 @@ import re
 import threading
 from pathlib import Path
 import sys
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import requests
+from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
@@ -19,6 +21,7 @@ if os.environ.get("ENVIRONMENT") != "DOCKER":
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from eval.run_evals import main as run_evals_main
+from src.api import agent as agent_mod
 
 app = FastAPI()
 
@@ -36,8 +39,11 @@ app.add_middleware(
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 EVAL_DATASET_PATH = Path(os.environ.get("EVAL_DATASET_PATH", _REPO_ROOT / "eval" / "dataset.json"))
 
-OLLAMA_URL = "http://ollama:11434/api/generate"
-MODEL = "qwen2.5-coder:1.5b"
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434/api/generate")
+OLLAMA_CHAT_URL = os.environ.get(
+    "OLLAMA_CHAT_URL", OLLAMA_URL.replace("/api/generate", "/api/chat")
+)
+MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:1.5b")
 QDRANT_URL = "http://qdrant:6333"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 COLLECTIONS = ["fedora_quick_docs", "bash_docs", "man_pages", "docker_docs", "git_docs"]
@@ -46,6 +52,37 @@ MIN_SCORE = 0.18  # Include borderline-relevant chunks; model can ignore noise
 
 qdrant = QdrantClient(url=QDRANT_URL)
 embedder = SentenceTransformer(EMBED_MODEL)
+agent_sessions = {}
+
+
+class AskRequest(BaseModel):
+    query: str = ""
+    q: str = ""
+    debug: bool = False
+    base_model: bool = False
+
+
+class AgentRunRequest(BaseModel):
+    query: str
+    mode: str = "interactive"
+    debug: bool = False
+    base_model: bool = False
+    session_id: str | None = None
+
+
+class AgentToolResult(BaseModel):
+    tool_call_id: str
+    command: str = ""
+    stdout: str = ""
+    stderr: str = ""
+    exit_code: int | None = None
+    timed_out: bool = False
+
+
+class AgentToolResultsRequest(BaseModel):
+    session_id: str
+    results: list[AgentToolResult]
+    debug: bool = False
 
 @app.get("/run-evaluation")
 async def run_evaluation(use_base_model: bool = False, stream: bool = True):
@@ -155,13 +192,197 @@ def _collect_chunks(q_vec, debug=False):
 @app.post("/ask")
 def ask(query: dict, debug: bool = False, base_model: bool = False):
     """Request body: { \"query\": \"user question\", \"debug\": bool, \"base_model\": bool }. When debug is true, response includes context and retrieval. When base_model is true, response is based on your knowledge only. debug/base_model can also be passed as query params."""
-    prompt = query.get("query") or query.get("q") or ""
-    # Allow debug and base_model from body (e.g. run_evals) or query params (e.g. chat UI)
-    if "debug" in query:
-        debug = bool(query["debug"])
-    if "base_model" in query:
-        base_model = bool(query["base_model"])
+    req = AskRequest(**query)
+    if req.debug:
+        debug = True
+    if req.base_model:
+        base_model = True
+    prompt = req.query or req.q
+    return _ask_core(prompt=prompt, debug=debug, base_model=base_model)
 
+
+def _retrieval_context(prompt: str, debug: bool = False):
+    """Run the RAG pipeline for the agent's initial system prompt."""
+    q_vec = embedder.encode(prompt).tolist()
+    chunks, any_searched, debug_info = _collect_chunks(q_vec, debug=debug)
+    if chunks:
+        context = "\n\n".join(chunks[:15])
+    elif any_searched:
+        context = "No relevant documentation found for this question."
+    else:
+        context = (
+            "Documentation collections are not initialized. "
+            "Populate the database by running: python -m src.db.init (see README)."
+        )
+    return context, len(chunks), debug_info
+
+
+def _run_agent_turn_for_session(
+    session: dict, *, base_model: bool, debug: bool, mode: str
+) -> dict:
+    """Run one model turn against the session's chat history. Returns the
+    API response payload (no execution — execution lives in the client)."""
+    norm = agent_mod.run_agent_turn(
+        session["messages"],
+        chat_url=OLLAMA_CHAT_URL,
+        generate_url=OLLAMA_URL,
+        model=MODEL,
+    )
+    agent_mod.append_assistant_turn(session["messages"], norm)
+    session["iterations"] = session.get("iterations", 0) + 1
+
+    capped = session["iterations"] >= agent_mod.MAX_ITERATIONS
+    if capped and norm.get("tool_calls"):
+        # Force termination: ask the model to stop and answer with what it has.
+        norm["tool_calls"] = []
+        norm["final_answer"] = (
+            norm.get("final_answer")
+            or "Stopped: reached the agent's max tool-call iterations. "
+            "Re-run with a more specific question, or run the suggested "
+            "commands manually."
+        )
+
+    steps = [{"type": "thoughts", "message": norm.get("thoughts", "")}]
+    if norm.get("tool_calls"):
+        steps.append({
+            "type": "tool_request",
+            "message": f"Requesting {len(norm['tool_calls'])} tool call(s)",
+        })
+    else:
+        steps.append({"type": "response", "message": "Produced final answer"})
+
+    out = {
+        "session_id": session["id"],
+        "mode": mode,
+        "iteration": session["iterations"],
+        "thoughts": norm.get("thoughts", ""),
+        "tool_calls": norm.get("tool_calls", []),
+        "final_answer": norm.get("final_answer"),
+        "done": not bool(norm.get("tool_calls")),
+        "steps": steps,
+        "max_iterations": agent_mod.MAX_ITERATIONS,
+    }
+    if debug:
+        out["raw"] = norm.get("raw", "")
+        out["schema_ok"] = norm.get("_schema_ok", True)
+        out["base_model"] = base_model
+    return out
+
+
+@app.post("/agent/run")
+def agent_run(payload: AgentRunRequest):
+    """Start a Basher agent turn for `payload.query`.
+
+    Response shape:
+      { session_id, mode, iteration, thoughts, tool_calls, final_answer,
+        done, steps, max_iterations }
+
+    The client should execute any returned tool_calls (shell commands) on the
+    user's machine and POST the results to /agent/tool-results to continue the
+    loop. When `done` is true and `tool_calls` is empty, the loop is finished.
+    """
+    query = (payload.query or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="query required")
+
+    session_id = payload.session_id or str(uuid4())
+    mode = payload.mode if payload.mode in ("interactive", "autonomous") else "interactive"
+
+    documentation = ""
+    retrieval_meta = None
+    if not payload.base_model:
+        documentation, used, debug_info = _retrieval_context(query, debug=payload.debug)
+        if payload.debug:
+            retrieval_meta = {"chunks_used": used, "collections": debug_info}
+
+    session = agent_sessions.get(session_id)
+    if not session:
+        session = {
+            "id": session_id,
+            "iterations": 0,
+            "mode": mode,
+            "base_model": payload.base_model,
+            "messages": agent_mod.build_initial_messages(
+                query,
+                documentation=documentation,
+                base_model=payload.base_model,
+            ),
+        }
+        agent_sessions[session_id] = session
+    else:
+        # Continuation in the same session: append a fresh user message.
+        session["messages"].append({"role": "user", "content": query})
+
+    out = _run_agent_turn_for_session(
+        session,
+        base_model=payload.base_model,
+        debug=payload.debug,
+        mode=mode,
+    )
+    if payload.debug:
+        out["context"] = documentation if not payload.base_model else "(base model only)"
+        if retrieval_meta is not None:
+            out["retrieval"] = retrieval_meta
+    return out
+
+
+@app.post("/agent/tool-results")
+def agent_tool_results(payload: AgentToolResultsRequest):
+    """Continue an agent loop after the client executed the requested tools.
+
+    Body: { session_id, results: [{ tool_call_id, command, stdout, stderr,
+                                    exit_code, timed_out }], debug }
+    Returns the same shape as /agent/run.
+    """
+    session = agent_sessions.get(payload.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if not payload.results:
+        raise HTTPException(status_code=400, detail="results required")
+
+    for r in payload.results:
+        session["messages"].append(
+            agent_mod.format_tool_result_message(
+                r.tool_call_id,
+                r.command,
+                {
+                    "stdout": r.stdout,
+                    "stderr": r.stderr,
+                    "exit_code": r.exit_code,
+                    "timed_out": r.timed_out,
+                },
+            )
+        )
+
+    return _run_agent_turn_for_session(
+        session,
+        base_model=session.get("base_model", False),
+        debug=payload.debug,
+        mode=session.get("mode", "interactive"),
+    )
+
+
+@app.get("/agent/session/{session_id}")
+def agent_session(session_id: str):
+    session = agent_sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {
+        "session_id": session_id,
+        "iterations": session.get("iterations", 0),
+        "mode": session.get("mode"),
+        "messages": session.get("messages", []),
+    }
+
+
+def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
+    prompt = (prompt or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="query required")
+
+    context = ""
+    chunks = []
+    debug_info = []
     # No database use when using only base model.
     if base_model:
         full_prompt = (
@@ -207,8 +428,7 @@ def ask(query: dict, debug: bool = False, base_model: bool = False):
             "prompt": full_prompt,
             "retrieval": {"chunks_used": len(chunks) if not base_model else 0, "collections": debug_info if not base_model else []},
         }
-    else:
-        return {"response": response.json()["response"]}
+    return {"response": response.json()["response"]}
 
 
 def _get_dataset():
