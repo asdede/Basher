@@ -21,7 +21,15 @@ if os.environ.get("ENVIRONMENT") != "DOCKER":
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from eval.run_evals import main as run_evals_main
-from src.api import agent as agent_mod
+
+# Import the sibling agent module. Works both in the local repo layout
+# (run from repo root: `uvicorn src.api.main:app`) and inside the Docker
+# image (Dockerfile.API flattens src/api/ into /app/, so we run
+# `uvicorn main:app` and `agent.py` becomes a top-level module).
+try:
+    from src.api import agent as agent_mod
+except ImportError:
+    import agent as agent_mod  # type: ignore[no-redef]
 
 app = FastAPI()
 
@@ -43,7 +51,15 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434/api/generate")
 OLLAMA_CHAT_URL = os.environ.get(
     "OLLAMA_CHAT_URL", OLLAMA_URL.replace("/api/generate", "/api/chat")
 )
-MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:1.5b")
+MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:3b")
+# Ollama defaults to num_ctx=2048, which silently truncates our system
+# prompt + RAG context + recent turns. 4096 is comfortable for 7b on
+# 8GB VRAM (Q4_K_M ~5.5-6GB total). Drop to 2048 if you OOM, bump if you
+# have more VRAM.
+try:
+    NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+except ValueError:
+    NUM_CTX = 4096
 QDRANT_URL = "http://qdrant:6333"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 COLLECTIONS = ["fedora_quick_docs", "bash_docs", "man_pages", "docker_docs", "git_docs"]
@@ -62,12 +78,33 @@ class AskRequest(BaseModel):
     base_model: bool = False
 
 
+class AgentPriorTurn(BaseModel):
+    user: str
+    answer: str = ""
+
+
 class AgentRunRequest(BaseModel):
     query: str
     mode: str = "interactive"
     debug: bool = False
     base_model: bool = False
     session_id: str | None = None
+    # Compressed memory of all earlier exchanges (one summary string).
+    prior_summary: str | None = None
+    # Verbatim memory of the most recent N exchanges (default cap = 3 in
+    # the client). Cheap enough to keep raw because each one is short and
+    # gives the model real continuity ("yes, do that", "now from that
+    # result", refs to prior commands), which a single compressed summary
+    # cannot do well on a small model.
+    prior_turns: list[AgentPriorTurn] | None = None
+    # RAG retrieval is OFF by default for the agent loop. The whole point
+    # of agent mode is that the model can probe the live system with
+    # tools — a `find $HOME ...` is more reliable than a stale doc chunk
+    # about "the find command". Stuffing both into a small model dilutes
+    # attention and produces hallucinated paths and echo answers. Opt in
+    # via `use_retrieval: true` for explanatory questions where docs
+    # really do help (e.g. "explain SELinux contexts").
+    use_retrieval: bool = False
 
 
 class AgentToolResult(BaseModel):
@@ -83,6 +120,12 @@ class AgentToolResultsRequest(BaseModel):
     session_id: str
     results: list[AgentToolResult]
     debug: bool = False
+
+
+class AgentSummarizeRequest(BaseModel):
+    query: str
+    final_answer: str
+    prior_summary: str | None = None
 
 @app.get("/run-evaluation")
 async def run_evaluation(use_base_model: bool = False, stream: bool = True):
@@ -222,12 +265,19 @@ def _run_agent_turn_for_session(
 ) -> dict:
     """Run one model turn against the session's chat history. Returns the
     API response payload (no execution — execution lives in the client)."""
-    norm = agent_mod.run_agent_turn(
-        session["messages"],
-        chat_url=OLLAMA_CHAT_URL,
-        generate_url=OLLAMA_URL,
-        model=MODEL,
-    )
+    try:
+        norm = agent_mod.run_agent_turn(
+            session["messages"],
+            chat_url=OLLAMA_CHAT_URL,
+            generate_url=OLLAMA_URL,
+            model=MODEL,
+            num_ctx=NUM_CTX,
+        )
+    except agent_mod.OllamaError as e:
+        # Translate upstream-Ollama failures into something the client can
+        # actually act on. The most common one in practice: operator
+        # changed OLLAMA_MODEL but didn't pull it in the LLM container.
+        raise HTTPException(status_code=e.status, detail=str(e))
     agent_mod.append_assistant_turn(session["messages"], norm)
     session["iterations"] = session.get("iterations", 0) + 1
 
@@ -259,12 +309,21 @@ def _run_agent_turn_for_session(
         "tool_calls": norm.get("tool_calls", []),
         "final_answer": norm.get("final_answer"),
         "done": not bool(norm.get("tool_calls")),
+        # `schema_ok` is always returned (not just in debug). The client
+        # uses it to decide whether to summarize/cache the turn — feeding
+        # the summarizer a failed turn produces hallucinated next_steps
+        # ("show podman logs" pattern-matched off the few-shot examples).
+        "schema_ok": bool(norm.get("_schema_ok", True)),
+        # When the agent had to nudge the model ("thinking_only" /
+        # "refusal" / "echo") and the retry succeeded, expose that fact
+        # so the UI can show a dim hint. Useful for debugging prompts
+        # and reassuring the user when latency was a hair higher.
+        "retry_reason": norm.get("_retry_reason"),
         "steps": steps,
         "max_iterations": agent_mod.MAX_ITERATIONS,
     }
     if debug:
         out["raw"] = norm.get("raw", "")
-        out["schema_ok"] = norm.get("_schema_ok", True)
         out["base_model"] = base_model
     return out
 
@@ -290,13 +349,18 @@ def agent_run(payload: AgentRunRequest):
 
     documentation = ""
     retrieval_meta = None
-    if not payload.base_model:
+    if not payload.base_model and payload.use_retrieval:
         documentation, used, debug_info = _retrieval_context(query, debug=payload.debug)
         if payload.debug:
             retrieval_meta = {"chunks_used": used, "collections": debug_info}
 
     session = agent_sessions.get(session_id)
     if not session:
+        prior_turns_raw = [
+            {"user": t.user, "answer": t.answer}
+            for t in (payload.prior_turns or [])
+            if (t.user or "").strip()
+        ]
         session = {
             "id": session_id,
             "iterations": 0,
@@ -306,11 +370,15 @@ def agent_run(payload: AgentRunRequest):
                 query,
                 documentation=documentation,
                 base_model=payload.base_model,
+                prior_summary=payload.prior_summary or "",
+                prior_turns=prior_turns_raw,
             ),
         }
         agent_sessions[session_id] = session
     else:
         # Continuation in the same session: append a fresh user message.
+        # We deliberately ignore prior_summary here — the live transcript
+        # is already richer than any compressed recap.
         session["messages"].append({"role": "user", "content": query})
 
     out = _run_agent_turn_for_session(
@@ -360,6 +428,35 @@ def agent_tool_results(payload: AgentToolResultsRequest):
         debug=payload.debug,
         mode=session.get("mode", "interactive"),
     )
+
+
+@app.post("/agent/summarize")
+def agent_summarize(payload: AgentSummarizeRequest):
+    """Compress a finished turn into { summary, next_step }.
+
+    The desktop UI calls this after a final_answer so it can cache a
+    compact memory of what just happened (`summary`) and a likely
+    follow-up (`next_step`, used when the user just hits Enter on the
+    next prompt). Best-effort: if the summarizer fails we return empty
+    strings rather than 500ing the client.
+    """
+    query = (payload.query or "").strip()
+    final = (payload.final_answer or "").strip()
+    if not query or not final:
+        return {"summary": "", "next_step": ""}
+    try:
+        return agent_mod.summarize_turn(
+            user_query=query,
+            final_answer=final,
+            chat_url=OLLAMA_CHAT_URL,
+            generate_url=OLLAMA_URL,
+            model=MODEL,
+            prior_summary=payload.prior_summary or "",
+            num_ctx=NUM_CTX,
+        )
+    except agent_mod.OllamaError:
+        # summarize is best-effort; never 500 the client over a cache miss.
+        return {"summary": "", "next_step": ""}
 
 
 @app.get("/agent/session/{session_id}")

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "electron .",
     "start": "electron .",
-    "build": "node --check main.js && node --check preload.js && node --check terminal-pty.js && node --check renderer/renderer.js && node --check renderer/terminal.js",
+    "build": "node --check main.js && node --check preload.js && node --check terminal-pty.js && node --check renderer/renderer.js",
     "postinstall": "electron-rebuild -f -w node-pty || true"
   },
   "dependencies": {

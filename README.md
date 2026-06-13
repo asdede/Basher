@@ -81,6 +81,4 @@ Options:
   --status Show API status.
 ```
 
-### UI (electronjs)
-
-Tulossa
+### Agent-UI (electronjs)

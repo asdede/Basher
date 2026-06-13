@@ -17,6 +17,9 @@
 #   --stop    Stops the basher containers.
 #   --down    Destroys the basher containers.
 #   --status  Show whether the API is running and healthy.
+#   --agent   Use the agent endpoint (/agent/run) instead of /ask. If the
+#             agent wants to run shell commands, the CLI surfaces them and
+#             stops — interactive tool approval lives in the desktop UI.
 #
 # ENVIRONMENT
 #   BASHER_API_URL            Base URL of the API (default: http://localhost:8000).
@@ -65,6 +68,7 @@ show_help() {
   echo "  --stop   Stops the basher containers."
   echo "  --down   Destroys the basher containers."
   echo "  --status Show API status."
+  echo "  --agent  Use the agent endpoint (no interactive tool approval)."
   exit 0
 }
 
@@ -195,11 +199,64 @@ check_docker_running() {
   fi
 }
 
+# --- Agent endpoint (single round-trip) ---
+#
+# We deliberately do NOT loop /agent/tool-results in the CLI. Tool approval
+# is the whole point of agent mode and a one-shot bash wrapper has no good
+# UX for it (no key polling, no editing, no streaming feedback). If the
+# agent asks for tools, we surface them and exit; the desktop UI is the
+# right place for the interactive loop.
+
+run_agent_once() {
+  local query="$1"
+  local debug="$2"
+  local body
+  body=$(jq -n --arg q "$query" --argjson d "${debug:-false}" \
+    '{query: $q, mode: "interactive", debug: $d, base_model: false}')
+
+  local http_code
+  tmp=${tmp:-$(mktemp)}
+  http_code=$(curl -s --connect-timeout "$BASHER_CONNECT_TIMEOUT" --max-time "$BASHER_ASK_MAX_TIME" \
+    -w "%{http_code}" -o "$tmp" -X POST "${API_URL}/agent/run" \
+    -H "Content-Type: application/json" \
+    -d "$body" 2>/dev/null) || true
+  json=$(cat "$tmp")
+  [[ -z "$http_code" ]] && http_code="000"
+  if [[ "$http_code" != "200" ]]; then
+    report_http_error "$http_code" "$json"
+    exit 1
+  fi
+  if ! echo "$json" | jq -e . >/dev/null 2>&1; then
+    echo "Basher: API returned invalid JSON." >&2
+    exit 1
+  fi
+
+  local final
+  final=$(echo "$json" | jq -r '.final_answer // empty')
+  if [[ -n "$final" ]]; then
+    prettify "$final"
+    [[ "${final: -1}" != $'\n' ]] && echo
+    return 0
+  fi
+
+  # No final answer — agent wants tool calls. Show them and bail with a hint.
+  printf '\033[33m%s\033[0m\n' "Basher (agent): wants to run shell commands. CLI does not run them; use the desktop UI for interactive tool approval."
+  echo "$json" | jq -r '
+    .thoughts as $t
+    | (if $t != "" then "\nthinking: " + $t else "" end),
+      "",
+      "proposed commands:",
+      (.tool_calls // [] | to_entries[] | "  [\(.value.danger // "safe")] $ \(.value.command)")
+  ' 2>/dev/null
+  return 1
+}
+
 # --- Main: parse options, then run ask flow ---
 
 main() {
   local query=""
   local debug="false"
+  local use_agent="false"
 
   # Parse options (planned: --start, --stop, --status)
   while [[ $# -gt 0 ]]; do
@@ -208,6 +265,7 @@ main() {
       --start)     cmd_start ;;
       --stop)      cmd_stop ;;
       --status)    cmd_status ;;
+      --agent)     use_agent="true" ;;
       --)          shift; break ;;
       -*)          echo "Basher: Unknown option: $1. Use --help for usage." >&2; exit 1 ;;
       *)           break ;;
@@ -243,6 +301,11 @@ main() {
   tmp=$(mktemp)
   cleanup() { kill "${curl_pid:-}" 2>/dev/null; exit 130; }
   trap cleanup INT TERM
+
+  if [[ "$use_agent" == "true" ]]; then
+    run_agent_once "$query" "$debug"
+    return $?
+  fi
 
   # Call /ask and capture HTTP code (curl -w) and body (-o); use timeouts so we don't hang if API dies
   local http_code

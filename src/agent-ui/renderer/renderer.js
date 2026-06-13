@@ -1,408 +1,879 @@
 /*
- * Renderer driver for the Basher agent loop.
+ * basher — dual-mode terminal panel.
  *
- * Protocol (see src/api/agent.py):
- *   POST /agent/run -> { session_id, tool_calls, final_answer, done, ... }
- *   For each tool_call: execute via PTY exec, then POST results to
- *   /agent/tool-results. Repeat until done.
+ *   AGENT mode  (alt-screen)  — talks to /agent/run, REPL with summary +
+ *                               next_step caching.
+ *   SHELL mode  (main screen) — a real bash via node-pty.
  *
- * Modes:
- *   interactive: tool calls require user approval (Run / Skip).
- *   autonomous: auto-run `safe` calls; `caution`/`destructive` still require
- *               explicit approval to avoid silent damage.
+ * Toggle with F2. We ride on the same trick `vim`/`htop` use: enter the
+ * alternate screen for the agent UI, leave it to reveal the live bash
+ * session. Each mode keeps its own scrollback; they never bleed into each
+ * other.
+ *
+ * Why a fresh agent session per turn (and a cached `summary` instead)?
+ *   The driving model is qwen2.5-coder:1.5b. Long transcripts hurt it more
+ *   than they help — relevance dilutes, schema drift creeps in, and tool
+ *   calls start hallucinating flags. A short compressed memory keeps
+ *   continuity without paying the long-context tax.
+ *
+ *   `next_step` is *only* used when the user presses Enter on an empty
+ *   agent prompt ("return prompt"). Any non-empty input wins.
  */
 
-function getEl(id) {
-  return document.getElementById(id);
-}
+(function () {
+  // ----- xterm setup ------------------------------------------------------
+  const Terminal = window.Terminal || (window.xterm && window.xterm.Terminal);
+  const FitAddonNS =
+    window.FitAddon || (window.addonFit && window.addonFit.FitAddon) || null;
+  const FitAddon =
+    typeof FitAddonNS === "function"
+      ? FitAddonNS
+      : FitAddonNS && FitAddonNS.FitAddon;
 
-const modeEl = getEl("mode");
-const debugEl = getEl("debug");
-const baseModelEl = getEl("baseModel");
-const sessionIdEl = getEl("sessionId");
-const queryEl = getEl("query");
-const statusEl = getEl("status");
-const responseEl = getEl("response");
-const stepsEl = getEl("steps");
-const sessionEl = getEl("session");
-const agentLogEl = getEl("agent-log");
-const suggestedEl = getEl("suggested-commands");
-const iterInfoEl = getEl("iterInfo");
-const sendBtn = getEl("sendBtn");
-const loadSessionBtn = getEl("loadSessionBtn");
+  const hostEl = document.getElementById("terminal");
+  if (!Terminal || !hostEl) {
+    document.body.textContent = "xterm.js failed to load.";
+    return;
+  }
 
-const TOOL_TIMEOUT_MS = 60_000;
+  const term = new Terminal({
+    cursorBlink: true,
+    fontFamily:
+      'ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace',
+    fontSize: 13,
+    theme: {
+      background: "#0b0e14",
+      foreground: "#e8edf2",
+      cursor: "#7aa2f7",
+      selectionBackground: "#264f78",
+      black: "#1a1b26",
+      red: "#f7768e",
+      green: "#9ece6a",
+      yellow: "#e0af68",
+      blue: "#7aa2f7",
+      magenta: "#bb9af7",
+      cyan: "#7dcfff",
+      white: "#a9b1d6",
+      brightBlack: "#414868",
+      brightRed: "#f7768e",
+      brightGreen: "#9ece6a",
+      brightYellow: "#e0af68",
+      brightBlue: "#7aa2f7",
+      brightMagenta: "#bb9af7",
+      brightCyan: "#7dcfff",
+      brightWhite: "#c0caf5",
+    },
+    convertEol: true,
+    scrollback: 8000,
+    allowProposedApi: true,
+  });
 
-function setStatus(message) {
-  statusEl.textContent = message;
-}
+  const fit = FitAddon ? new FitAddon() : null;
+  if (fit) term.loadAddon(fit);
+  term.open(hostEl);
+  try {
+    if (fit) fit.fit();
+  } catch (_) {
+    /* layout not ready */
+  }
 
-function asText(value) {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  return JSON.stringify(value, null, 2);
-}
+  // ----- ANSI helpers -----------------------------------------------------
+  const ESC = "\x1b[";
+  const RESET = `${ESC}0m`;
+  const ALT_SCREEN_ON = "\x1b[?1049h";
+  const ALT_SCREEN_OFF = "\x1b[?1049l";
+  const c = {
+    dim: (s) => `${ESC}2m${s}${RESET}`,
+    bold: (s) => `${ESC}1m${s}${RESET}`,
+    red: (s) => `${ESC}31m${s}${RESET}`,
+    green: (s) => `${ESC}32m${s}${RESET}`,
+    yellow: (s) => `${ESC}33m${s}${RESET}`,
+    blue: (s) => `${ESC}34m${s}${RESET}`,
+    magenta: (s) => `${ESC}35m${s}${RESET}`,
+    cyan: (s) => `${ESC}36m${s}${RESET}`,
+  };
 
-function escapeHtml(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+  function write(s) {
+    term.write(s);
+  }
+  function writeln(s) {
+    term.writeln(s);
+  }
 
-/** Minimal markdown renderer: fenced code, inline code, bold. Safe enough
- * for assistant output without pulling a real library. */
-function renderMarkdown(md) {
-  const src = String(md || "");
-  const fenced = src.replace(
-    /```(\w+)?\n([\s\S]*?)```/g,
-    (_m, lang, code) =>
-      `<pre><code class="lang-${escapeHtml(lang || "")}">${escapeHtml(code)}</code></pre>`
-  );
-  return fenced
-    .replace(/`([^`\n]+)`/g, (_m, c) => `<code>${escapeHtml(c)}</code>`)
-    .replace(/\*\*([^*]+)\*\*/g, (_m, c) => `<strong>${escapeHtml(c)}</strong>`)
-    .replace(/\n/g, "<br/>");
-}
+  // ----- Mode state -------------------------------------------------------
+  // The mode machine lives at the very top of input handling. Both modes
+  // are "live" simultaneously underneath; we just gate IO routing.
+  const MODE = { AGENT: "agent", SHELL: "shell" };
+  let mode = MODE.AGENT;
 
-function clearLog() {
-  if (agentLogEl) agentLogEl.innerHTML = "";
-}
+  // PTY plumbing — bash runs the whole time even while the user is in
+  // agent mode, so commands they kicked off keep making progress.
+  let ptyId = null;
+  let ptyAlive = false;
+  // Bounded buffer for pty output that arrives while we're in agent mode.
+  // 256 KiB is plenty for "I came back from a 5-minute build" without
+  // letting a runaway `yes` eat the renderer's memory.
+  const PTY_BUF_LIMIT = 256 * 1024;
+  let ptyBuffer = "";
 
-function logEntry(kind, html) {
-  if (!agentLogEl) return null;
-  const div = document.createElement("div");
-  div.className = `log-entry ${kind}`;
-  div.innerHTML = html;
-  agentLogEl.appendChild(div);
-  agentLogEl.scrollTop = agentLogEl.scrollHeight;
-  return div;
-}
-
-function appendThoughts(thoughts) {
-  if (!thoughts) return;
-  logEntry(
-    "thoughts",
-    `<span class="tag">thinking</span>${escapeHtml(thoughts)}`
-  );
-}
-
-function appendSystem(message) {
-  logEntry("system", `<span class="tag">info</span>${escapeHtml(message)}`);
-}
-
-function appendError(message) {
-  logEntry("error", `<span class="tag">error</span>${escapeHtml(message)}`);
-}
-
-function appendToolRequest(call, controls) {
-  const wrap = document.createElement("div");
-  wrap.className = "log-entry tool";
-  const dangerClass = `danger-${call.danger || "safe"}`;
-  const banned = call.banned_reason ? ` ⛔ ${escapeHtml(call.banned_reason)}` : "";
-  wrap.innerHTML =
-    `<span class="tag">tool</span>` +
-    `<span class="danger-tag ${dangerClass}">${escapeHtml(call.danger || "safe")}</span>` +
-    (call.purpose ? `<span style="color:#98a4b3"> ${escapeHtml(call.purpose)}</span>` : "") +
-    banned +
-    `<div style="margin-top:6px"><code>$ ${escapeHtml(call.command)}</code></div>`;
-
-  if (controls) {
-    const actions = document.createElement("div");
-    actions.className = "log-actions";
-    for (const c of controls) {
-      const b = document.createElement("button");
-      b.textContent = c.label;
-      b.className = c.className || "";
-      b.addEventListener("click", () => c.onClick(b));
-      actions.appendChild(b);
+  function setWindowTitle() {
+    const t = mode === MODE.AGENT ? "basher — agent (F2: shell)" : "basher — shell (F2: agent)";
+    try {
+      document.title = t;
+    } catch (_) {
+      /* noop */
     }
-    wrap.appendChild(actions);
   }
 
-  agentLogEl.appendChild(wrap);
-  agentLogEl.scrollTop = agentLogEl.scrollHeight;
-  return wrap;
-}
-
-function appendToolResult(call, result) {
-  const ok = !result.timedOut && result.code === 0;
-  const summary =
-    `<span class="tag">result</span>` +
-    `<span style="color:${ok ? "#9ece6a" : "#f7768e"}">exit=${result.code}` +
-    `${result.timedOut ? " (timed out)" : ""}${result.signal ? ` signal=${result.signal}` : ""}</span>` +
-    `<div style="margin-top:4px;color:#98a4b3;font-size:11px">for <code>${escapeHtml(call.command)}</code></div>` +
-    `<pre>${escapeHtml(
-      [
-        result.stdout ? `--- stdout ---\n${result.stdout}` : "",
-        result.stderr ? `--- stderr ---\n${result.stderr}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n") || "(no output)"
-    )}</pre>`;
-  logEntry("result", summary);
-}
-
-function setIter(info) {
-  if (iterInfoEl) iterInfoEl.textContent = info || "";
-}
-
-/* ---------------------------------------------------------------- *
- * Agent loop
- * ---------------------------------------------------------------- */
-
-async function executeToolCall(call) {
-  if (!window.basherTerminal) {
-    throw new Error("Terminal panel is not initialized.");
+  // ----- Banner -----------------------------------------------------------
+  function banner() {
+    writeln("");
+    writeln(
+      c.bold(c.cyan(" basher ")) +
+        c.dim(" — Fedora bash agent (qwen2.5-coder:1.5b)")
+    );
+    writeln(
+      c.dim("   ") +
+        c.bold("F2") +
+        c.dim(" toggles between agent REPL and a real bash shell.")
+    );
+    writeln(
+      c.dim(
+        "   in agent mode: type a question and press Enter; empty Enter " +
+          "re-runs the cached next-step."
+      )
+    );
+    writeln(
+      c.dim("   ctrl-c cancels the current line / agent turn, ctrl-l clears.")
+    );
+    writeln("");
   }
-  // Mirror the command into the live terminal as a comment for visibility.
-  window.basherTerminal
-    .writeCommand(`# agent: ${call.command}`, { run: false })
-    .catch(() => {});
-  return window.basherTerminal.exec(call.command, { timeoutMs: TOOL_TIMEOUT_MS });
-}
 
-function shouldAutoRun(call, mode) {
-  if (call.banned_reason) return false;
-  if (mode === "autonomous") return call.danger === "safe";
-  return false;
-}
+  // ----- Agent REPL state -------------------------------------------------
+  const STATE = {
+    IDLE: "idle",
+    RUNNING: "running",
+    DECISION: "decision",
+  };
+  let state = STATE.IDLE;
+  let pendingDecisionResolver = null;
+  let pendingDecisionAllowed = null;
 
-function approvalControls(call, mode, onDecision) {
-  const banned = Boolean(call.banned_reason);
-  const controls = [
-    {
-      label: banned ? "Banned" : "Run",
-      onClick: (btn) => {
-        if (banned) return;
-        btn.disabled = true;
-        onDecision("run");
-      },
-    },
-    {
-      label: "Skip",
-      className: "secondary",
-      onClick: (btn) => {
-        btn.disabled = true;
-        onDecision("skip");
-      },
-    },
-    {
-      label: "Edit",
-      className: "secondary",
-      onClick: () => {
-        const next = window.prompt("Edit command before running:", call.command);
-        if (next == null) return;
-        call.command = String(next);
-        onDecision("run-edited");
-      },
-    },
-  ];
-  if (banned) controls[0].className = "secondary";
-  return controls;
-}
+  let buf = "";
+  let cursor = 0;
+  const promptText = c.green("basher$ ");
 
-async function approveCall(call, mode) {
-  return new Promise((resolve) => {
-    if (shouldAutoRun(call, mode)) {
-      appendToolRequest(call, null);
-      resolve("run");
+  const history = [];
+  const HISTORY_LIMIT = 200;
+  let historyIdx = -1;
+  let savedBuf = "";
+
+  let cachedSummary = "";
+  let cachedNextStep = "";
+  // Rolling last-N verbatim memory. The summary alone loses too much
+  // ("yes, do that", "now from that result...") to be enough on its own.
+  // 3 is a sweet spot for the small model: enough continuity, not so
+  // much that the context starts crowding out the actual question.
+  const PRIOR_TURNS_KEEP = 3;
+  const recentTurns = []; // [{ user, answer }]
+
+  function showPrompt({ withHint = true } = {}) {
+    if (withHint && cachedNextStep) {
+      writeln(
+        c.dim("  ↳ next: ") +
+          c.cyan(cachedNextStep) +
+          c.dim("   (press Enter to run, or type a new question)")
+      );
+    }
+    write(promptText);
+    buf = "";
+    cursor = 0;
+    historyIdx = -1;
+    savedBuf = "";
+    state = STATE.IDLE;
+  }
+
+  function redrawLine() {
+    write("\r" + `${ESC}2K`);
+    write(promptText + buf);
+    const trailing = buf.length - cursor;
+    if (trailing > 0) write(`${ESC}${trailing}D`);
+  }
+
+  // ----- Markdown-ish rendering for the final answer ----------------------
+  function renderFinalAnswer(md) {
+    const src = String(md || "");
+    if (!src) {
+      writeln(c.dim("(no answer)"));
       return;
     }
-    appendToolRequest(call, approvalControls(call, mode, resolve));
-  });
-}
-
-async function executeAndReport(call) {
-  try {
-    const result = await executeToolCall(call);
-    appendToolResult(call, result);
-    return {
-      tool_call_id: call.id,
-      command: call.command,
-      stdout: result.stdout || "",
-      stderr: result.stderr || "",
-      exit_code: typeof result.code === "number" ? result.code : -1,
-      timed_out: Boolean(result.timedOut),
-    };
-  } catch (err) {
-    const msg = err && err.message ? err.message : String(err);
-    appendError(`Execution failed: ${msg}`);
-    return {
-      tool_call_id: call.id,
-      command: call.command,
-      stdout: "",
-      stderr: `[client error] ${msg}`,
-      exit_code: -1,
-      timed_out: false,
-    };
-  }
-}
-
-async function driveAgentLoop(initialResponse) {
-  let turn = initialResponse;
-  const mode = modeEl.value;
-  let maxIter = turn.max_iterations || 6;
-
-  while (turn && !turn.done) {
-    setIter(`iteration ${turn.iteration}/${maxIter}`);
-    appendThoughts(turn.thoughts);
-
-    const results = [];
-    for (const call of turn.tool_calls || []) {
-      const decision = await approveCall(call, mode);
-      if (decision === "skip") {
-        results.push({
-          tool_call_id: call.id,
-          command: call.command,
-          stdout: "",
-          stderr: "[skipped by user]",
-          exit_code: -2,
-          timed_out: false,
-        });
+    const lines = src.split(/\r?\n/);
+    let inFence = false;
+    for (const raw of lines) {
+      if (/^\s*```/.test(raw)) {
+        inFence = !inFence;
+        writeln(c.dim(raw));
         continue;
       }
-      results.push(await executeAndReport(call));
-    }
-
-    if (!results.length) {
-      appendError("No tool results were produced; halting loop.");
-      break;
-    }
-
-    setStatus("Continuing agent reasoning...");
-    turn = await window.basherAgentApi.submitToolResults({
-      session_id: turn.session_id,
-      results,
-      debug: Boolean(debugEl.checked),
-    });
-  }
-
-  if (turn) {
-    setIter(`iteration ${turn.iteration}/${maxIter} • done`);
-    appendThoughts(turn.thoughts);
-    if (turn.final_answer) {
-      responseEl.innerHTML = renderMarkdown(turn.final_answer);
-      // Mirror final answer's commands as one-click chips.
-      renderSuggestedCommands(extractCommands(turn.final_answer));
-    } else {
-      responseEl.textContent = "(no final answer)";
-    }
-    setStatus(`Done. Session: ${turn.session_id}`);
-  }
-}
-
-/* ---------------------------------------------------------------- *
- * Suggested-commands chips (re-run a command from the final answer)
- * ---------------------------------------------------------------- */
-
-function extractCommands(text) {
-  const out = [];
-  const src = String(text || "");
-  const fenceRe = /```(bash|sh|shell|console|zsh)?\s*\n([\s\S]*?)```/gi;
-  let m;
-  while ((m = fenceRe.exec(src)) !== null) {
-    for (const raw of (m[2] || "").split(/\r?\n/)) {
-      const line = raw.replace(/^\s*[$#]\s+/, "").trim();
-      if (!line || line.startsWith("//") || line.startsWith("# ")) continue;
-      out.push(line);
+      if (inFence) {
+        writeln(c.cyan(raw));
+        continue;
+      }
+      if (/^\s*#+\s+/.test(raw)) {
+        writeln(c.bold(c.blue(raw)));
+        continue;
+      }
+      writeln(raw.replace(/`([^`]+)`/g, (_m, code) => c.cyan(code)));
     }
   }
-  for (const raw of src.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (/^\$\s+\S/.test(line)) out.push(line.replace(/^\$\s+/, ""));
-  }
-  const seen = new Set();
-  return out.filter((c) => (!c || seen.has(c) ? false : (seen.add(c), true)));
-}
 
-function renderSuggestedCommands(commands) {
-  if (!suggestedEl) return;
-  suggestedEl.innerHTML = "";
-  if (!commands.length) return;
-  const header = document.createElement("div");
-  header.style.fontSize = "12px";
-  header.style.color = "#98a4b3";
-  header.textContent = "Commands from the answer (click to run interactively):";
-  suggestedEl.appendChild(header);
-  for (const cmd of commands) {
-    const row = document.createElement("div");
-    row.className = "cmd-row";
-    const code = document.createElement("code");
-    code.textContent = cmd;
-    row.appendChild(code);
-    const runBtn = document.createElement("button");
-    runBtn.textContent = "Run in terminal";
-    runBtn.addEventListener("click", () => {
-      window.basherTerminal
-        ?.writeCommand(cmd, { run: true })
-        .catch((err) => setStatus(`Terminal write failed: ${err.message || err}`));
-    });
-    row.appendChild(runBtn);
-    suggestedEl.appendChild(row);
-  }
-}
-
-/* ---------------------------------------------------------------- *
- * Top-level handlers
- * ---------------------------------------------------------------- */
-
-async function runAgent() {
-  const query = String(queryEl.value || "").trim();
-  if (!query) {
-    setStatus("Prompt is required.");
-    return;
+  // ----- Tool approval ----------------------------------------------------
+  function dangerColor(d) {
+    if (d === "destructive") return c.red(d);
+    if (d === "caution") return c.yellow(d);
+    return c.green(d || "safe");
   }
 
-  sendBtn.disabled = true;
-  setStatus("Running agent...");
-  responseEl.innerHTML = "";
-  if (stepsEl) stepsEl.textContent = "";
-  if (suggestedEl) suggestedEl.innerHTML = "";
-  clearLog();
-  appendSystem(`User: ${query}`);
-
-  try {
-    const payload = {
-      query,
-      mode: modeEl.value,
-      debug: Boolean(debugEl.checked),
-      base_model: Boolean(baseModelEl.checked),
-      session_id: String(sessionIdEl.value || "").trim() || null,
-    };
-    const initial = await window.basherAgentApi.runAgent(payload);
-    sessionIdEl.value = initial.session_id || sessionIdEl.value;
-    if (stepsEl && initial.steps) stepsEl.textContent = asText(initial.steps);
-    await driveAgentLoop(initial);
-  } catch (err) {
-    appendError(err && err.message ? err.message : String(err));
-    setStatus(`Run failed: ${err.message || String(err)}`);
-  } finally {
-    sendBtn.disabled = false;
-  }
-}
-
-async function loadSession() {
-  const id = String(sessionIdEl.value || "").trim();
-  if (!id) {
-    setStatus("Session ID is required to load session.");
-    return;
-  }
-  loadSessionBtn.disabled = true;
-  setStatus(`Loading session ${id}...`);
-  try {
-    const out = await window.basherAgentApi.getSession(id);
-    sessionEl.textContent = asText(out.messages || []);
-    setStatus(
-      `Session ${id} loaded (${out.iterations || 0} iterations, mode ${out.mode || "?"}).`
+  function printToolRequest(call) {
+    writeln("");
+    writeln(
+      c.yellow("• tool ") +
+        c.dim("(" + dangerColor(call.danger) + ")") +
+        (call.purpose ? " " + c.dim(call.purpose) : "")
     );
-  } catch (err) {
-    setStatus(`Load failed: ${err.message || String(err)}`);
-  } finally {
-    loadSessionBtn.disabled = false;
+    writeln("    " + c.bold("$ ") + call.command);
+    if (call.banned_reason) {
+      writeln("    " + c.red("⛔ banned: ") + call.banned_reason);
+    }
   }
-}
 
-sendBtn.addEventListener("click", runAgent);
-loadSessionBtn.addEventListener("click", loadSession);
+  function printToolResult(call, result) {
+    const ok = !result.timedOut && result.code === 0;
+    writeln(
+      "    " +
+        (ok ? c.green("✓") : c.red("✗")) +
+        " exit=" +
+        String(result.code) +
+        (result.timedOut ? c.red(" timed-out") : "") +
+        (result.signal ? c.dim(" signal=" + result.signal) : "")
+    );
+    const out = (result.stdout || "").trimEnd();
+    const err = (result.stderr || "").trimEnd();
+    if (out) for (const line of out.split(/\r?\n/)) writeln("    " + line);
+    if (err) for (const line of err.split(/\r?\n/)) writeln("    " + c.red(line));
+    if (!out && !err) writeln("    " + c.dim("(no output)"));
+  }
+
+  async function approveCall(call) {
+    if (call.banned_reason) {
+      writeln("    " + c.dim("auto-skipped (banned)"));
+      return "skip";
+    }
+    return new Promise((resolve) => {
+      const allowed = new Set(["r", "s", "e"]);
+      pendingDecisionAllowed = allowed;
+      pendingDecisionResolver = (key) => {
+        pendingDecisionAllowed = null;
+        pendingDecisionResolver = null;
+        if (key === "s") return resolve("skip");
+        if (key === "e") {
+          state = STATE.IDLE;
+          editToolCommand(call.command).then((next) => {
+            if (next == null) return resolve("skip");
+            resolve({ decision: "run-edited", command: next });
+          });
+          return;
+        }
+        resolve("run");
+      };
+      writeln(
+        "    " +
+          c.dim("approve? ") +
+          c.bold("[r]") +
+          c.dim("un  ") +
+          c.bold("[s]") +
+          c.dim("kip  ") +
+          c.bold("[e]") +
+          c.dim("dit")
+      );
+      write("    " + c.dim("> "));
+      state = STATE.DECISION;
+    });
+  }
+
+  let editResolver = null;
+  function editToolCommand(initial) {
+    return new Promise((resolve) => {
+      writeln("");
+      write(c.dim("    edit> "));
+      buf = String(initial || "");
+      cursor = buf.length;
+      write(buf);
+      editResolver = (final) => {
+        editResolver = null;
+        resolve(final);
+      };
+    });
+  }
+
+  // ----- Agent driver -----------------------------------------------------
+  let abortRequested = false;
+  let activeRun = null;
+
+  async function executeToolCall(call) {
+    writeln(c.dim("    running..."));
+    return window.basherShell.exec(call.command, { timeoutMs: 60_000 });
+  }
+
+  async function runAgent(query) {
+    activeRun = { sessionId: null, query };
+    abortRequested = false;
+    state = STATE.RUNNING;
+
+    let turn;
+    try {
+      const payload = {
+        query,
+        mode: "interactive",
+        debug: false,
+        base_model: false,
+        session_id: null,
+        prior_summary: cachedSummary || null,
+        // Verbatim last-N memory. Sent fresh on every prompt so the
+        // server stays stateless w.r.t. our chat history.
+        prior_turns: recentTurns.length ? recentTurns.slice() : null,
+      };
+      turn = await window.basherAgentApi.runAgent(payload);
+    } catch (err) {
+      writeln(c.red("error: ") + (err && err.message ? err.message : String(err)));
+      state = STATE.IDLE;
+      return;
+    }
+    activeRun.sessionId = turn.session_id;
+
+    while (turn && !turn.done) {
+      if (abortRequested) {
+        writeln(c.dim("(aborted)"));
+        break;
+      }
+      if (turn.thoughts) {
+        writeln(c.magenta("• thinking ") + c.dim(turn.thoughts));
+      }
+      const results = [];
+      for (const call of turn.tool_calls || []) {
+        if (abortRequested) break;
+        printToolRequest(call);
+        const decision = await approveCall(call);
+        if (decision === "skip") {
+          writeln("    " + c.dim("skipped"));
+          results.push({
+            tool_call_id: call.id,
+            command: call.command,
+            stdout: "",
+            stderr: "[skipped by user]",
+            exit_code: -2,
+            timed_out: false,
+          });
+          continue;
+        }
+        let cmdToRun = call.command;
+        if (decision && decision.decision === "run-edited") {
+          cmdToRun = decision.command;
+          writeln("    " + c.dim("edited: ") + cmdToRun);
+        }
+        let exec;
+        try {
+          exec = await executeToolCall({ ...call, command: cmdToRun });
+        } catch (err) {
+          const msg = err && err.message ? err.message : String(err);
+          writeln("    " + c.red("[client error] ") + msg);
+          results.push({
+            tool_call_id: call.id,
+            command: cmdToRun,
+            stdout: "",
+            stderr: `[client error] ${msg}`,
+            exit_code: -1,
+            timed_out: false,
+          });
+          continue;
+        }
+        printToolResult({ ...call, command: cmdToRun }, exec);
+        results.push({
+          tool_call_id: call.id,
+          command: cmdToRun,
+          stdout: exec.stdout || "",
+          stderr: exec.stderr || "",
+          exit_code: typeof exec.code === "number" ? exec.code : -1,
+          timed_out: Boolean(exec.timedOut),
+        });
+      }
+      if (!results.length) {
+        writeln(c.red("no tool results produced; halting loop"));
+        break;
+      }
+      try {
+        turn = await window.basherAgentApi.submitToolResults({
+          session_id: turn.session_id,
+          results,
+          debug: false,
+        });
+      } catch (err) {
+        writeln(c.red("error: ") + (err && err.message ? err.message : String(err)));
+        break;
+      }
+    }
+
+    if (turn && turn.done) {
+      if (turn.thoughts) {
+        writeln(c.magenta("• thinking ") + c.dim(turn.thoughts));
+      }
+      if (turn.retry_reason) {
+        // The server had to send a corrective nudge to the model. Show
+        // it so the user knows why latency might have been a hair
+        // higher — and so prompt-engineers can see this in the wild.
+        const labels = {
+          thinking_only: "model planned but didn't act — nudged it to run the command",
+          refusal: "model refused — nudged it to drop the safety reflex",
+          echo: "model echoed the question — nudged it for new info",
+          field_leak: "model returned a schema keyword — nudged it for a real answer",
+        };
+        writeln(
+          c.dim("  ↳ " + (labels[turn.retry_reason] || "model needed a nudge"))
+        );
+      }
+      writeln("");
+      const ok = isUsefulAnswer(turn);
+      if (ok) {
+        renderFinalAnswer(turn.final_answer);
+        // Push verbatim memory: keep the last N and feed them on the
+        // next /agent/run call.
+        recentTurns.push({
+          user: query,
+          answer: String(turn.final_answer || ""),
+        });
+        while (recentTurns.length > PRIOR_TURNS_KEEP) recentTurns.shift();
+        // Only feed the summarizer real exchanges — junk in, junk out
+        // and the cached next_step starts hallucinating ("show podman
+        // logs" pattern-matching off the system prompt's few-shots).
+        summarizeInBackground(query, turn.final_answer);
+      } else {
+        // Drop any stale cache so empty Enter on the next prompt does
+        // not keep replaying a broken turn.
+        cachedNextStep = "";
+        // Show what the model actually said (if anything) so the user
+        // can tell "empty" from "refused"; both go through this branch.
+        const said = String(turn.final_answer || "").trim();
+        if (said) {
+          writeln(
+            c.yellow("model declined or returned an unusable response: ") +
+              c.dim(said.length > 200 ? said.slice(0, 200) + "..." : said)
+          );
+        } else {
+          writeln(c.yellow("model returned an empty response."));
+        }
+        writeln(
+          c.dim("→ try rephrasing, or press F2 to run a command directly.")
+        );
+      }
+    }
+
+    state = STATE.IDLE;
+    writeln("");
+    showPrompt({ withHint: false });
+  }
+
+  // A "useful" turn has schema_ok=true AND a non-empty, non-placeholder
+  // final_answer. The placeholder check covers the "(no answer)" /
+  // "(no response)" sentinels older API revisions emitted, plus our own
+  // synthetic strings. We never summarize/cache a non-useful turn.
+  function isUsefulAnswer(turn) {
+    if (!turn) return false;
+    if (turn.schema_ok === false) return false;
+    const a = String(turn.final_answer || "").trim();
+    if (!a) return false;
+    if (a.startsWith("(") && a.endsWith(")") && a.length < 60) return false;
+    return true;
+  }
+
+  async function summarizeInBackground(query, finalAnswer) {
+    if (!finalAnswer) return;
+    try {
+      const out = await window.basherAgentApi.summarize({
+        query,
+        final_answer: finalAnswer,
+        prior_summary: cachedSummary || null,
+      });
+      const summary = String(out && out.summary ? out.summary : "").trim();
+      const nextStep = String(out && out.next_step ? out.next_step : "").trim();
+      if (summary) cachedSummary = summary;
+      if (nextStep) {
+        cachedNextStep = nextStep;
+        // Only update the visible hint if we're in agent mode, idle, with
+        // an empty buffer. Otherwise the user is mid-typing and we'd
+        // clobber their input.
+        if (mode === MODE.AGENT && state === STATE.IDLE && buf === "") {
+          write("\r" + `${ESC}2K`);
+          write(`${ESC}1A` + `${ESC}2K`);
+          writeln(
+            c.dim("  ↳ next: ") +
+              c.cyan(cachedNextStep) +
+              c.dim("   (press Enter to run, or type a new question)")
+          );
+          write(promptText);
+        }
+      }
+    } catch (_) {
+      /* best-effort */
+    }
+  }
+
+  // ----- Submit handling --------------------------------------------------
+  function submitLine() {
+    const line = buf;
+    buf = "";
+    cursor = 0;
+    historyIdx = -1;
+    savedBuf = "";
+    writeln("");
+
+    if (editResolver) {
+      const r = editResolver;
+      const trimmed = line.trim();
+      r(trimmed || null);
+      return;
+    }
+
+    const query = decideQuery(line);
+    if (!query) {
+      showPrompt({ withHint: false });
+      return;
+    }
+
+    if (line.trim() === "" && query !== "") {
+      writeln(c.dim("(running cached next-step) ") + c.cyan(query));
+    }
+    if (history[history.length - 1] !== query) {
+      history.push(query);
+      if (history.length > HISTORY_LIMIT) history.shift();
+    }
+    cachedNextStep = "";
+    runAgent(query);
+  }
+
+  function decideQuery(line) {
+    const trimmed = line.trim();
+    if (trimmed) return trimmed;
+    if (cachedNextStep) return cachedNextStep;
+    return "";
+  }
+
+  // ----- PTY lifecycle ----------------------------------------------------
+  // The pty session is shared by the whole window. It survives mode
+  // toggles. If bash exits, we recreate so F2 always lands somewhere
+  // useful.
+  async function ensurePty() {
+    if (ptyId && ptyAlive) return ptyId;
+    const info = await window.basherShell.create({
+      cols: term.cols,
+      rows: term.rows,
+    });
+    ptyId = info.id;
+    ptyAlive = true;
+    return ptyId;
+  }
+
+  function ptyWrite(data) {
+    if (!ptyId || !ptyAlive) return;
+    window.basherShell.write(ptyId, data).catch(() => {});
+  }
+
+  function ptyResize(cols, rows) {
+    if (!ptyId || !ptyAlive) return;
+    window.basherShell.resize(ptyId, cols, rows).catch(() => {});
+  }
+
+  // ----- Mode toggle ------------------------------------------------------
+  function enterAgentMode({ initial = false } = {}) {
+    if (mode === MODE.AGENT && !initial) return;
+    mode = MODE.AGENT;
+    write(ALT_SCREEN_ON);
+    setWindowTitle();
+    if (initial) {
+      banner();
+      showPrompt({ withHint: false });
+    }
+    // Don't redraw on subsequent toggles — the alt-screen kept our state.
+  }
+
+  async function enterShellMode() {
+    if (mode === MODE.SHELL) return;
+    // If bash died while we were in agent mode, transparently respawn so
+    // F2 always lands somewhere useful.
+    if (!ptyAlive) {
+      try {
+        await ensurePty();
+      } catch (_) {
+        /* leave the user a dead shell, they'll see the message */
+      }
+    }
+    mode = MODE.SHELL;
+    write(ALT_SCREEN_OFF);
+    setWindowTitle();
+    if (ptyBuffer.length > 0) {
+      term.write(ptyBuffer);
+      ptyBuffer = "";
+    }
+    // Nudge bash to redraw its prompt (it was sitting idle, but we may
+    // have lost the last prompt to the alt-screen scrollback).
+    ptyWrite("");
+  }
+
+  function toggleMode() {
+    if (mode === MODE.AGENT) enterShellMode();
+    else enterAgentMode();
+  }
+
+  // ----- Key dispatch -----------------------------------------------------
+  // F2 in either xterm flavor: \x1bOQ (xterm-application-keypad) or \x1b[12~.
+  function isToggleKey(s) {
+    return s === "\x1bOQ" || s === "\x1b[12~";
+  }
+
+  function handleData(data) {
+    // F2 wins everywhere — including mid-agent-run, mid-decision-prompt,
+    // mid-bash-pipe-yes. The toggle never blocks.
+    if (isToggleKey(data)) {
+      toggleMode();
+      return;
+    }
+    // F2 might arrive at the front of a chunk along with other bytes
+    // (rare, but possible with paste). Strip a leading toggle and handle
+    // the rest.
+    if (data.startsWith("\x1bOQ") || data.startsWith("\x1b[12~")) {
+      toggleMode();
+      data = data.slice(data.startsWith("\x1bOQ") ? 3 : 5);
+      if (!data) return;
+    }
+
+    if (mode === MODE.SHELL) {
+      ptyWrite(data);
+      return;
+    }
+    handleAgentData(data);
+  }
+
+  function handleAgentData(data) {
+    if (state === STATE.DECISION) {
+      handleDecisionData(data);
+      return;
+    }
+    if (state === STATE.RUNNING && !editResolver) {
+      if (data === "\x03") {
+        abortRequested = true;
+        writeln("\n" + c.dim("(aborting...)"));
+      }
+      return;
+    }
+
+    let i = 0;
+    while (i < data.length) {
+      const ch = data[i];
+
+      if (ch === "\x03") {
+        if (editResolver) {
+          writeln("");
+          const r = editResolver;
+          editResolver = null;
+          r(null);
+          return;
+        }
+        writeln("^C");
+        showPrompt({ withHint: false });
+        return;
+      }
+
+      if (ch === "\x0c") {
+        term.clear();
+        write(promptText + buf);
+        const trailing = buf.length - cursor;
+        if (trailing > 0) write(`${ESC}${trailing}D`);
+        i++;
+        continue;
+      }
+
+      if (ch === "\r" || ch === "\n") {
+        submitLine();
+        return;
+      }
+
+      if (ch === "\x7f" || ch === "\b") {
+        if (cursor > 0) {
+          buf = buf.slice(0, cursor - 1) + buf.slice(cursor);
+          cursor--;
+          redrawLine();
+        }
+        i++;
+        continue;
+      }
+
+      if (ch === "\x1b" && data[i + 1] === "[") {
+        const code = data[i + 2];
+        if (code === "A") {
+          if (history.length === 0) {
+            i += 3;
+            continue;
+          }
+          if (historyIdx === -1) savedBuf = buf;
+          if (historyIdx === -1) historyIdx = history.length;
+          if (historyIdx > 0) historyIdx--;
+          buf = history[historyIdx];
+          cursor = buf.length;
+          redrawLine();
+          i += 3;
+          continue;
+        }
+        if (code === "B") {
+          if (historyIdx === -1) {
+            i += 3;
+            continue;
+          }
+          historyIdx++;
+          if (historyIdx >= history.length) {
+            historyIdx = -1;
+            buf = savedBuf;
+          } else {
+            buf = history[historyIdx];
+          }
+          cursor = buf.length;
+          redrawLine();
+          i += 3;
+          continue;
+        }
+        if (code === "C") {
+          if (cursor < buf.length) {
+            cursor++;
+            write(`${ESC}1C`);
+          }
+          i += 3;
+          continue;
+        }
+        if (code === "D") {
+          if (cursor > 0) {
+            cursor--;
+            write(`${ESC}1D`);
+          }
+          i += 3;
+          continue;
+        }
+        // Skip unknown CSI sequences cleanly (\x1b[...letter or ~).
+        let j = i + 2;
+        while (j < data.length && !/[a-zA-Z~]/.test(data[j])) j++;
+        i = j + 1;
+        continue;
+      }
+
+      if (ch >= " " && ch !== "\x7f") {
+        let j = i;
+        while (j < data.length && data[j] >= " " && data[j] !== "\x7f") j++;
+        const chunk = data.slice(i, j);
+        buf = buf.slice(0, cursor) + chunk + buf.slice(cursor);
+        cursor += chunk.length;
+        redrawLine();
+        i = j;
+        continue;
+      }
+
+      i++;
+    }
+  }
+
+  function handleDecisionData(data) {
+    for (const ch of data) {
+      const lower = ch.toLowerCase();
+      if (ch === "\x03") {
+        writeln("^C");
+        const r = pendingDecisionResolver;
+        pendingDecisionAllowed = null;
+        pendingDecisionResolver = null;
+        if (r) r("s");
+        return;
+      }
+      if (pendingDecisionAllowed && pendingDecisionAllowed.has(lower)) {
+        write(lower);
+        writeln("");
+        const r = pendingDecisionResolver;
+        pendingDecisionAllowed = null;
+        pendingDecisionResolver = null;
+        if (r) r(lower);
+        return;
+      }
+      write("\x07");
+    }
+  }
+
+  term.onData(handleData);
+
+  // ----- Resize: keep both surfaces aligned -------------------------------
+  function refit() {
+    try {
+      if (fit) fit.fit();
+    } catch (_) {
+      /* noop */
+    }
+  }
+  window.addEventListener("resize", refit);
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(refit);
+    ro.observe(hostEl);
+  }
+  term.onResize(({ cols, rows }) => ptyResize(cols, rows));
+
+  // ----- Boot -------------------------------------------------------------
+  async function boot() {
+    setWindowTitle();
+    // Wire pty data first so we never miss output once bash starts up.
+    window.basherShell.onData(({ id, data }) => {
+      if (id !== ptyId) return;
+      if (mode === MODE.SHELL) {
+        term.write(data);
+      } else if (ptyBuffer.length < PTY_BUF_LIMIT) {
+        ptyBuffer += data;
+        if (ptyBuffer.length > PTY_BUF_LIMIT) {
+          // Cap with a visible marker so the user knows we dropped tail.
+          ptyBuffer =
+            ptyBuffer.slice(0, PTY_BUF_LIMIT) +
+            "\r\n[basher: shell output truncated while in agent mode]\r\n";
+        }
+      }
+    });
+    window.basherShell.onExit(({ id, exitCode, signal }) => {
+      if (id !== ptyId) return;
+      ptyAlive = false;
+      const note =
+        `\r\n[shell exited code=${exitCode} signal=${signal || "none"}; ` +
+        `press F2 twice to start a new one]\r\n`;
+      if (mode === MODE.SHELL) {
+        term.write(note);
+      } else {
+        ptyBuffer += note;
+      }
+    });
+
+    // Spawn bash up-front so the user always has a live shell waiting on
+    // F2, and so anything they leave running keeps making progress while
+    // they're in agent mode.
+    try {
+      await ensurePty();
+    } catch (err) {
+      // Non-fatal — the agent panel works even without a shell. We just
+      // can't toggle.
+      // Show a single dim line in the agent banner area later.
+      console.warn("pty spawn failed:", err);
+    }
+
+    enterAgentMode({ initial: true });
+    term.focus();
+  }
+
+  boot();
+})();

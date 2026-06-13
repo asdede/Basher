@@ -5,6 +5,11 @@ services:
       context: ./dockerfiles
       dockerfile: Dockerfile.LLM
     container_name: basher-llm
+    environment:
+      # Pulled by entrypoint-ollama.sh on first start. Keep in sync with
+      # OLLAMA_MODEL on the api service so the model the API asks for is
+      # actually present in the LLM container.
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:1.5b}
     ports:
       - "11434:11434"
     volumes:
@@ -35,6 +40,10 @@ services:
       dockerfile: dockerfiles/Dockerfile.API
     container_name: basher-api
     user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      # Must match the ollama service's OLLAMA_MODEL or the api will ask
+      # for a model the LLM container never pulled (HTTP 404 from Ollama).
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:1.5b}
     ports:
       - "8000:8000"
     volumes:

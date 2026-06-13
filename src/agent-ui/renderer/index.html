@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Basher Agent UI</title>
+    <title>basher</title>
     <link
       rel="stylesheet"
       href="../node_modules/@xterm/xterm/css/xterm.css"
@@ -11,79 +11,9 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header>
-      <h1>Basher Agent Mode</h1>
-      <p>Electron desktop UI for agent mode endpoint, with integrated Fedora terminal.</p>
-    </header>
-
-    <main>
-      <section class="card">
-        <div class="row">
-          <label for="mode">Mode</label>
-          <select id="mode">
-            <option value="interactive">interactive</option>
-            <option value="autonomous">autonomous</option>
-          </select>
-        </div>
-        <div class="row inline">
-          <label><input type="checkbox" id="debug" /> debug</label>
-          <label><input type="checkbox" id="baseModel" /> base model only</label>
-        </div>
-        <div class="row">
-          <label for="sessionId">Session ID (optional)</label>
-          <input id="sessionId" placeholder="leave empty to create new session" />
-        </div>
-        <div class="row">
-          <label for="query">Prompt</label>
-          <textarea id="query" rows="5" placeholder="Ask Basher agent..."></textarea>
-        </div>
-        <div class="actions">
-          <button id="sendBtn">Run Agent</button>
-          <button id="loadSessionBtn" class="secondary">Load Session</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Status</h2>
-        <pre id="status">Ready.</pre>
-      </section>
-
-      <section class="card">
-        <h2>Final Answer</h2>
-        <div id="response" class="response-md"></div>
-      </section>
-
-      <section class="card">
-        <div class="agent-log-header">
-          <h2>Agent log</h2>
-          <span id="iterInfo" class="terminal-info"></span>
-        </div>
-        <div id="agent-log" class="agent-log"></div>
-        <div id="suggested-commands" class="suggested-commands"></div>
-      </section>
-
-      <section class="card">
-        <h2>Session Messages</h2>
-        <pre id="session"></pre>
-      </section>
-
-      <section class="card terminal-card">
-        <div class="terminal-header">
-          <h2>Terminal</h2>
-          <div class="terminal-actions">
-            <button id="termNewBtn" class="secondary" type="button">New shell</button>
-            <button id="termClearBtn" class="secondary" type="button">Clear</button>
-            <button id="termKillBtn" class="secondary" type="button">Kill</button>
-            <span id="termInfo" class="terminal-info"></span>
-          </div>
-        </div>
-        <div id="terminal" class="terminal-host"></div>
-      </section>
-    </main>
-
+    <div id="terminal" class="terminal-host"></div>
     <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
     <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
-    <script src="./terminal.js"></script>
     <script src="./renderer.js"></script>
   </body>
 </html>

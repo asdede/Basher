@@ -1,6 +1,13 @@
 # Päiväkirja projektiin liittyen
 *Poistetaan*
 
+## 13.6
+- Viimeistelyä
+- Promptien viimeistelyä ja parannuksia
+- Agenttisen terminaalin viimeistelyä.
+- Testausta yms.
+- Muistin parantelua
+
 ## 30.5
 - Lisätty gcc-c++
 - Tehty agenttinen terminaali. (Fedoran terminaali integroitu electroniin).
