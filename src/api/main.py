@@ -178,8 +178,10 @@ async def run_evaluation(use_base_model: bool = False, stream: bool = True):
 
 @app.get("/health")
 def health():
-    """Health check for CLI and load balancers. Returns status 'ok' when the API is up."""
-    return {"status": "ok"}
+    """Health check for CLI and load balancers. Returns status 'ok' when
+    the API is up, plus the model the API is currently configured to call
+    (so the UI banner can stop lying about which model is in use)."""
+    return {"status": "ok", "model": MODEL, "num_ctx": NUM_CTX}
 
 
 def _collect_chunks(q_vec, debug=False):
@@ -306,6 +308,12 @@ def _run_agent_turn_for_session(
         "mode": mode,
         "iteration": session["iterations"],
         "thoughts": norm.get("thoughts", ""),
+        # Chain of thinking passes for this turn. Empty list when the
+        # model only ran a single pass (e.g. tool-mediated turns where
+        # the post-tool reasoning is itself the second pass — the agent
+        # only fills `thinking_steps` when it forced a reflection round
+        # to enforce the >= 2-passes-before-final-answer policy).
+        "thinking_steps": norm.get("thinking_steps") or [],
         "tool_calls": norm.get("tool_calls", []),
         "final_answer": norm.get("final_answer"),
         "done": not bool(norm.get("tool_calls")),
@@ -319,12 +327,23 @@ def _run_agent_turn_for_session(
         # so the UI can show a dim hint. Useful for debugging prompts
         # and reassuring the user when latency was a hair higher.
         "retry_reason": norm.get("_retry_reason"),
+        # When `schema_ok` is False this names the failure mode (same
+        # enum as `retry_reason`: thinking_only / refusal / echo /
+        # field_leak / empty / non_json). The renderer reads it to
+        # render a clean "(model failed: <reason>)" header instead of
+        # double-wrapping the server-side explanation.
+        "failure_reason": norm.get("_failure_reason"),
         "steps": steps,
         "max_iterations": agent_mod.MAX_ITERATIONS,
     }
     if debug:
         out["raw"] = norm.get("raw", "")
         out["base_model"] = base_model
+        # The exact `final_answer` the model emitted before server-side
+        # sanitization replaced it with a clean English explanation.
+        # Only present when sanitization actually fired.
+        if norm.get("_raw_final_answer"):
+            out["raw_final_answer"] = norm.get("_raw_final_answer")
     return out
 
 

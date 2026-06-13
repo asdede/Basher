@@ -50,6 +50,26 @@ function createWindow() {
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 }
 
+async function getJson(pathname) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5_000);
+  try {
+    const res = await fetch(`${API_BASE}${pathname}`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    try {
+      return JSON.parse(text);
+    } catch (_) {
+      throw new Error(`Invalid JSON from ${pathname}: ${text.slice(0, 200)}`);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function postJson(pathname, payload) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
@@ -84,6 +104,7 @@ async function postJson(pathname, payload) {
   }
 }
 
+ipcMain.handle("agent:health", () => getJson("/health"));
 ipcMain.handle("agent:run", (_e, payload) => postJson("/agent/run", payload));
 ipcMain.handle("agent:toolResults", (_e, payload) =>
   postJson("/agent/tool-results", payload)

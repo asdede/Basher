@@ -126,11 +126,16 @@
   }
 
   // ----- Banner -----------------------------------------------------------
+  // The model line is rendered after a one-shot /health probe so the
+  // banner can't lie about which model is actually serving requests.
+  // (Old banner hard-coded "qwen2.5-coder:1.5b" which was wrong even
+  // when the API was wired to the 7b — confusing to debug.)
   function banner() {
     writeln("");
     writeln(
       c.bold(c.cyan(" basher ")) +
-        c.dim(" — Fedora bash agent (qwen2.5-coder:1.5b)")
+        c.dim(" — Fedora bash agent ") +
+        c.dim("(checking model…)")
     );
     writeln(
       c.dim("   ") +
@@ -147,6 +152,35 @@
       c.dim("   ctrl-c cancels the current line / agent turn, ctrl-l clears.")
     );
     writeln("");
+  }
+
+  async function probeAndUpdateBannerModel() {
+    let label = "model unknown";
+    try {
+      const h = await window.basherAgentApi.health();
+      const model = h && h.model ? String(h.model) : "";
+      const ctx = h && h.num_ctx ? `, ctx=${h.num_ctx}` : "";
+      if (model) label = `${model}${ctx}`;
+    } catch (_) {
+      label = "API unreachable";
+    }
+    // The banner line we want to update is 5 lines above the current
+    // prompt (banner is 5 writeln calls; cursor is on the prompt line).
+    // We can't really edit a single line in xterm without ANSI cursor
+    // moves; do it cleanly when idle and the buffer is empty.
+    if (mode === MODE.AGENT && state === STATE.IDLE && buf === "") {
+      // Save cursor, move 5 lines up to the banner's model line, clear
+      // it, repaint with the real model label, then restore the cursor.
+      write("\x1b7"); // save cursor
+      write("\r" + `${ESC}5A` + `${ESC}2K`);
+      write(
+        c.bold(c.cyan(" basher ")) +
+          c.dim(" — Fedora bash agent (") +
+          c.cyan(label) +
+          c.dim(")")
+      );
+      write("\x1b8"); // restore cursor
+    }
   }
 
   // ----- Agent REPL state -------------------------------------------------
@@ -177,6 +211,16 @@
   const PRIOR_TURNS_KEEP = 3;
   const recentTurns = []; // [{ user, answer }]
 
+  // Consecutive schema-failure counter. When the model fails several
+  // turns in a row we assume the rolling memory is poisoning new turns
+  // ("find_folder" style placeholder after an exit=1 search) and wipe
+  // the soft memory caches. Hard transcripts inside in-flight sessions
+  // are untouched — we only flush the cross-session memory the renderer
+  // owns. Threshold of 2 because a single fluke shouldn't nuke memory
+  // the user has been building up across several good turns.
+  let consecutiveFailures = 0;
+  const FAILURE_FLUSH_THRESHOLD = 2;
+
   function showPrompt({ withHint = true } = {}) {
     if (withHint && cachedNextStep) {
       writeln(
@@ -198,6 +242,36 @@
     write(promptText + buf);
     const trailing = buf.length - cursor;
     if (trailing > 0) write(`${ESC}${trailing}D`);
+  }
+
+  // ----- Thinking trace ---------------------------------------------------
+  // The server enforces "think at least twice before answering": when the
+  // model would commit a final_answer straight off a single pass, it
+  // forces a reflection round and returns BOTH thoughts as
+  // `thinking_steps`. Tool-mediated turns naturally span >= 2 passes
+  // (initial plan + post-tool reasoning) and arrive with `thinking_steps`
+  // empty — for those we just show `thoughts` as before.
+  function renderThinkingPasses(turn) {
+    if (!turn) return;
+    const stepsRaw = Array.isArray(turn.thinking_steps) ? turn.thinking_steps : [];
+    const steps = stepsRaw
+      .map((t) => String(t || "").trim())
+      .filter((t) => t.length > 0);
+    if (steps.length === 0) {
+      const single = String(turn.thoughts || "").trim();
+      if (single) writeln(c.magenta("• thinking ") + c.dim(single));
+      return;
+    }
+    if (steps.length === 1) {
+      writeln(c.magenta("• thinking ") + c.dim(steps[0]));
+      return;
+    }
+    steps.forEach((thought, idx) => {
+      writeln(
+        c.magenta(`• thinking [pass ${idx + 1}/${steps.length}] `) +
+          c.dim(thought)
+      );
+    });
   }
 
   // ----- Markdown-ish rendering for the final answer ----------------------
@@ -356,9 +430,7 @@
         writeln(c.dim("(aborted)"));
         break;
       }
-      if (turn.thoughts) {
-        writeln(c.magenta("• thinking ") + c.dim(turn.thoughts));
-      }
+      renderThinkingPasses(turn);
       const results = [];
       for (const call of turn.tool_calls || []) {
         if (abortRequested) break;
@@ -424,9 +496,7 @@
     }
 
     if (turn && turn.done) {
-      if (turn.thoughts) {
-        writeln(c.magenta("• thinking ") + c.dim(turn.thoughts));
-      }
+      renderThinkingPasses(turn);
       if (turn.retry_reason) {
         // The server had to send a corrective nudge to the model. Show
         // it so the user knows why latency might have been a hair
@@ -436,6 +506,7 @@
           refusal: "model refused — nudged it to drop the safety reflex",
           echo: "model echoed the question — nudged it for new info",
           field_leak: "model returned a schema keyword — nudged it for a real answer",
+          no_tool_for_state: "model guessed instead of running a tool — nudged it to actually search",
         };
         writeln(
           c.dim("  ↳ " + (labels[turn.retry_reason] || "model needed a nudge"))
@@ -445,6 +516,9 @@
       const ok = isUsefulAnswer(turn);
       if (ok) {
         renderFinalAnswer(turn.final_answer);
+        // A real answer resets the failure streak — the soft memory is
+        // clearly still useful.
+        consecutiveFailures = 0;
         // Push verbatim memory: keep the last N and feed them on the
         // next /agent/run call.
         recentTurns.push({
@@ -460,20 +534,55 @@
         // Drop any stale cache so empty Enter on the next prompt does
         // not keep replaying a broken turn.
         cachedNextStep = "";
-        // Show what the model actually said (if anything) so the user
-        // can tell "empty" from "refused"; both go through this branch.
+        // Server now substitutes raw placeholder tokens (like
+        // "find_folder") with a clean English explanation before this
+        // payload arrives, so `turn.final_answer` is either empty, a
+        // short legacy synthetic, or a human-readable explanation. We
+        // render the explanation through `renderFinalAnswer` (markdown
+        // pass) and prefix it with a compact "(model failed: <reason>)"
+        // tag so the user immediately knows the answer is the agent
+        // explaining its own failure, not a real result.
         const said = String(turn.final_answer || "").trim();
+        const reasonLabels = {
+          field_leak: "field_leak (placeholder token)",
+          echo: "echo (paraphrased question)",
+          refusal: "refusal",
+          thinking_only: "thinking_only (planned without acting)",
+          empty: "empty response",
+          non_json: "malformed JSON",
+          no_tool_for_state: "no_tool_for_state (guessed instead of running a tool)",
+        };
+        const reasonText = reasonLabels[turn.failure_reason] ||
+          turn.failure_reason || "unusable response";
+        writeln(c.yellow("• model failed ") + c.dim("(" + reasonText + ")"));
         if (said) {
-          writeln(
-            c.yellow("model declined or returned an unusable response: ") +
-              c.dim(said.length > 200 ? said.slice(0, 200) + "..." : said)
-          );
+          renderFinalAnswer(said);
         } else {
-          writeln(c.yellow("model returned an empty response."));
+          writeln(c.dim("(no text returned)"));
         }
         writeln(
           c.dim("→ try rephrasing, or press F2 to run a command directly.")
         );
+        // Wipe the soft memory caches if failures keep stacking up. The
+        // most common cause of stuck failures is the previous turn's
+        // recap or recentTurns biasing the model into the same wrong
+        // pattern (the "find_folder after exit=1" loop the user hit).
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= FAILURE_FLUSH_THRESHOLD) {
+          if (cachedSummary || recentTurns.length) {
+            writeln(
+              c.dim(
+                "  ↳ cleared rolling memory after " +
+                  consecutiveFailures +
+                  " consecutive failures (the cache may have been poisoning new turns)."
+              )
+            );
+          }
+          cachedSummary = "";
+          cachedNextStep = "";
+          recentTurns.length = 0;
+          consecutiveFailures = 0;
+        }
       }
     }
 
@@ -873,6 +982,10 @@
 
     enterAgentMode({ initial: true });
     term.focus();
+    // Best-effort: replace the "(checking model…)" placeholder in the
+    // banner with the actual model the API is configured for. Never
+    // blocks boot — if the probe fails we leave the placeholder text.
+    probeAndUpdateBannerModel().catch(() => {});
   }
 
   boot();

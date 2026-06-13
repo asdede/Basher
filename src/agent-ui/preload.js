@@ -13,6 +13,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("basherAgentApi", {
+  health: () => ipcRenderer.invoke("agent:health"),
   runAgent: (payload) => ipcRenderer.invoke("agent:run", payload),
   submitToolResults: (payload) => ipcRenderer.invoke("agent:toolResults", payload),
   summarize: (payload) => ipcRenderer.invoke("agent:summarize", payload),

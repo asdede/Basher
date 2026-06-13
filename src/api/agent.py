@@ -90,9 +90,16 @@ shell(command: string)
 `final_answer` MUST be the actual user-facing markdown answer text. It is
 NEVER a single word, NEVER one of the schema keys above
 (`thoughts`/`tool_calls`/`command`/`purpose`/`danger`/`safe`/`caution`/
-`destructive`/`shell`/`task`/`response`), and NEVER the user's question
-paraphrased back. If you have nothing useful to say, emit a `tool_calls`
-instead.
+`destructive`/`shell`/`task`/`response`), NEVER a placeholder identifier
+(`file_location`, `path_to_file`, `<filename>`, `your_answer`, ...), and
+NEVER the user's question paraphrased back. If you have nothing useful
+to say, emit a `tool_calls` instead.
+
+NEVER invent paths, filenames, package names, port numbers, or version
+strings. If you don't have a real value from a tool result or a doc, you
+MUST emit a `tool_calls` to go get one. Tokens like `/home/user/...`,
+`/path/to/...`, `example.com`, `localhost:PORT` are forbidden as
+substitutes for real data.
 
 # Rules
 
@@ -105,12 +112,19 @@ instead.
    command first. Do NOT guess paths or filenames; do NOT echo the
    user's words back as the answer. Only after a tool result comes back
    may you write a `final_answer`.
-3. NEVER refuse. The user owns their machine. Questions like "where is
-   my X folder?", "what's running on port N?", "find file Y", "list my
-   containers" are normal sysadmin work. Phrases like "I'm sorry, I
-   can't help with that", "this is a sensitive issue", "as an AI
-   model..." are FORBIDDEN. If you don't know, emit a `find` / `locate`
-   / `command -v` / `ss` / `ps` one-liner that *would* find the answer.
+3. NEVER refuse and NEVER deflect. The user owns their machine and you
+   have a live shell on it. Questions like "where is my X folder?",
+   "what's running on port N?", "find file Y", "list my containers" are
+   normal sysadmin work. The following kinds of replies are FORBIDDEN:
+   - "I'm sorry, I can't help with that", "this is a sensitive issue",
+     "as an AI model...".
+   - "I don't have access to your system / files / machine" — you DO
+     (the `shell` tool). Use it.
+   - "You may want to try searching online", "consult the documentation",
+     "reach out to the support team / sysadmin", "back up your data
+     regularly" — these are deflections, not answers.
+   If you don't know the value, emit a `find` / `locate` / `command -v` /
+   `ss` / `ps` / `grep -r` one-liner that *would* find it.
 4. Use at most 2 tool_calls per turn. Read their output, then decide.
 5. Pick the RIGHT tool for the question — small command, exact intent.
 
@@ -150,15 +164,31 @@ preference.
 8. Quote paths containing spaces. Use absolute paths or `$HOME`. Don't
    rely on `cd` persisting between calls — each call is a fresh
    `bash -lc`.
-9. Answer in the user's language. If they wrote Finnish, answer Finnish.
-10. When you give `final_answer`, be concise: 1-3 short sentences of
+9. **Match the language of the user's CURRENT (most recent) message.**
+   The current user turn wins over any prior context, summaries, or
+   few-shot examples. If the latest user message is in English, reply
+   in English even when older messages, recap text, or system notes
+   were in another language. If the latest user message is in Finnish,
+   reply in Finnish even when the few-shot examples above are English.
+   Do NOT switch languages mid-answer.
+10. **When a previous tool call failed** (exit_code != 0, timed out, or
+    returned empty stdout for a `find`/`grep`/`locate`), do NOT repeat
+    the same command and do NOT emit a placeholder token like
+    `find_folder` / `result` / `path_to_file` as `final_answer`. Either
+    (a) emit a *different* `tool_calls` (broader `find`, `locate`,
+    different path, different pattern, `2>/dev/null` to silence noise),
+    or (b) emit a concrete `final_answer` that honestly says what was
+    tried and what was not found — in 1-2 short sentences + a fenced
+    ```bash``` block the user can re-run with different inputs. Never
+    fabricate a path or filename to fill the gap.
+11. When you give `final_answer`, be concise: 1-3 short sentences of
     plain prose explaining the result, then a fenced ```bash``` block of
     the exact commands the user should run themselves. Do NOT echo the
     question back. No filler. No apologies. No schema fragments.
 
 # Examples (study the tool choices)
 
-User: "What Kernal am I running?"
+User: "What Kernel am I running?"
 Assistant:
 {"thoughts":"Check the running kernel version with uname.","tool_calls":[{"type":"shell","command":"uname -r","purpose":"running kernel version","danger":"safe"}],"final_answer":null}
 
@@ -196,9 +226,9 @@ WRONG  → {"thoughts":"Look in home.","tool_calls":[{"type":"shell","command":"
    visible tree. `find -iname` is the correct primitive.
 RIGHT  → {"thoughts":"Search $HOME for a Basher directory; its parent is the code folder.","tool_calls":[{"type":"shell","command":"find \\"$HOME\\" -maxdepth 6 -type d -iname 'basher*' 2>/dev/null | head -20","purpose":"find the Basher project, its parent is the lost code folder","danger":"safe"}],"final_answer":null}
 
-Tool result (find ...): "/home/masterbates/code/inno/Basher\\n/home/masterbates/code/inno/Basher/src/agent-ui/node_modules/.../basher-agent-ui"
+Tool result (find ...): "/home/user/code/inno/Basher\\n/home/user/code/inno/Basher/src/agent-ui/node_modules/.../basher-agent-ui"
 Assistant:
-{"thoughts":"Found it: parent of the project is the code folder.","tool_calls":[],"final_answer":"Your code folder is **/home/masterbates/code** (the project lives at `/home/masterbates/code/inno/Basher`).\\n\\n```bash\\nls /home/masterbates/code\\n```"}
+{"thoughts":"Found it: parent of the project is the code folder.","tool_calls":[],"final_answer":"Your code folder is **/home/user/code** (the project lives at `/home/masterbates/code/inno/Basher`).\\n\\n```bash\\nls /home/masterbates/code\\n```"}
 
 # Wrong vs right (final_answer content)
 
@@ -209,6 +239,25 @@ WRONG  → {"thoughts":"...","tool_calls":[],"final_answer":"task"}
 WRONG  → {"thoughts":"...","tool_calls":[],"final_answer":"what kernel am I on"}
    ↑ One-word / schema-key / question-echo answers are forbidden.
 RIGHT  → {"thoughts":"...","tool_calls":[],"final_answer":"Kernel **6.14.6-300.fc43.x86_64**.\\n\\n```bash\\nuname -r\\n```"}
+
+# Wrong vs right (the "I lost saliapp" failure mode)
+
+User: "I have lost folder called saliapp, can you find it for me?"
+WRONG  → {"thoughts":"User lost saliapp.","tool_calls":[],"final_answer":"saliapp"}
+   ↑ Echoing the keyword from the question is NOT an answer. The user
+   already knows the folder is called saliapp — that's why they asked.
+WRONG  → {"thoughts":"saliapp lives in /usr/local/bin.","tool_calls":[],"final_answer":"/usr/local/bin/saliapp"}
+   ↑ You did not run a tool. Any path you write here is a guess. The
+   user's actual folder could be anywhere — `~/code/saliapp`,
+   `~/Documents/saliapp`, `/opt/saliapp`, ... You CANNOT know without
+   searching.
+RIGHT  → {"thoughts":"Search $HOME for any directory named saliapp; do not guess the path.","tool_calls":[{"type":"shell","command":"find \\"$HOME\\" -maxdepth 6 -type d -iname 'saliapp*' 2>/dev/null | head -20","purpose":"locate the saliapp folder","danger":"safe"}],"final_answer":null}
+
+Tool result (find ...): "/home/user/projects/saliapp"
+RIGHT  → {"thoughts":"Found it under ~/projects.","tool_calls":[],"final_answer":"Your **saliapp** folder is at `/home/user/projects/saliapp`.\\n\\n```bash\\nls /home/user/projects/saliapp\\n```"}
+
+If the search returns nothing, do NOT invent a path. Answer honestly:
+{"thoughts":"Nothing under $HOME; admit it and suggest a broader search.","tool_calls":[],"final_answer":"I could not find any folder named `saliapp*` under `$HOME`. Try a wider search:\\n\\n```bash\\nsudo find / -type d -iname 'saliapp*' 2>/dev/null\\n```"}
 """
 
 
@@ -429,9 +478,24 @@ def _normalize_response(raw: str, *, user_query: str = "") -> dict:
             failure_reason = "empty"
         schema_ok = False
 
-    # Refusal detection. Coder models at q4 have residual safety tuning
-    # that fires unpredictably ("I'm sorry, I can't assist with that",
-    # "this is a sensitive political issue", etc.) for completely benign
+    # Order matters here. The most actionable retry nudge wins, since
+    # `failure_reason = failure_reason or "..."` is short-circuit.
+    #
+    # 1. refusal       — safety-style language; treat first, irrespective
+    #                    of whether a tool ran. The cure (drop the safety
+    #                    reflex) is the same either way.
+    # 2. no_tool_for_state — state question with no tool_call. This is the
+    #                    ROOT CAUSE behind most "saliapp" / "/usr/local/bin/
+    #                    saliapp" failures; echo/field_leak are just the
+    #                    symptom. Putting it before those two means the
+    #                    user gets the more actionable nudge ("emit
+    #                    `find …`") instead of the generic "give new info".
+    # 3. echo          — paraphrase of the question; rare without #2.
+    # 4. field_leak    — schema keyword / placeholder.
+
+    # 1. Refusal detection. Coder models at q4 have residual safety
+    # tuning that fires unpredictably ("I'm sorry, I can't assist with
+    # that", "this is a sensitive political issue", etc.) for benign
     # sysadmin questions. Letting that through is worse than admitting
     # the turn failed: the user can rephrase but a canned refusal wastes
     # their time and poisons the rolling memory.
@@ -439,7 +503,26 @@ def _normalize_response(raw: str, *, user_query: str = "") -> dict:
         schema_ok = False
         failure_reason = failure_reason or "refusal"
 
-    # Echo detection. Same models occasionally satisfy `format=json` by
+    # 2. No-tool-for-state-question detection. Purely structural: the
+    # user asked a state-on-this-machine question, and the model
+    # committed a `final_answer` without running anything. That's
+    # always wrong — the answer is at best a guess, more usually a
+    # hallucinated path (`/usr/local/bin/saliapp`) or a one-word noun
+    # echo (`saliapp`). The retry nudge forces an actual `find` /
+    # `locate` tool call before any `final_answer`. We DO allow
+    # tool-result callbacks: those messages start with "[tool_result"
+    # and have already been preceded by a real tool, so this turn is
+    # the post-tool reasoning, not the guess-the-answer turn.
+    if (
+        isinstance(final_answer, str)
+        and not tool_calls
+        and not (user_query or "").startswith("[tool_result")
+        and _is_state_question(user_query)
+    ):
+        schema_ok = False
+        failure_reason = failure_reason or "no_tool_for_state"
+
+    # 3. Echo detection. Models occasionally satisfy `format=json` by
     # rephrasing the user's question into final_answer. Treat that as a
     # failed turn so the renderer surfaces it and we don't cache an
     # empty exchange into the rolling memory.
@@ -451,11 +534,11 @@ def _normalize_response(raw: str, *, user_query: str = "") -> dict:
         schema_ok = False
         failure_reason = failure_reason or "echo"
 
-    # Field-leak detection. A small model under format=json sometimes
+    # 4. Field-leak detection. A small model under format=json sometimes
     # fills `final_answer` with one of the schema keys ("purpose",
-    # "task", "command", ...) — JSON-valid, completely useless. Catch it
-    # so the retry-nudge loop can re-prompt for a real answer instead of
-    # the renderer showing "purpose" as if it were a reply.
+    # "task", "command", ...) — JSON-valid, completely useless. Catch
+    # it so the retry-nudge loop can re-prompt for a real answer
+    # instead of the renderer showing "purpose" as if it were a reply.
     if (
         isinstance(final_answer, str)
         and not tool_calls
@@ -475,8 +558,9 @@ def _normalize_response(raw: str, *, user_query: str = "") -> dict:
     return out
 
 
-# All anchored to short responses; we don't want to flag a legitimately
-# long answer that happens to contain "I'm sorry" inside an explanation.
+# Short-response refusals — the classic "I'm sorry, I can't ..." opener.
+# Capped tight so a long real answer that happens to contain a matching
+# substring doesn't get tripped.
 _REFUSAL_PATTERNS = (
     re.compile(r"i\s*[''']?m\s+sorry,?\s+(but\s+)?i\s+(can(?:not|'?\s*t)|am\s+unable|won'?t)", re.I),
     re.compile(r"i\s+(?:can(?:not|'?\s*t)|am\s+unable|won'?t)\s+(?:assist|help|answer|address|comment)", re.I),
@@ -487,53 +571,191 @@ _REFUSAL_PATTERNS = (
     re.compile(r"i\s+don'?t\s+(?:engage|comment)\s+(?:with|on)\s+(?:political|controversial)", re.I),
 )
 
+# Long-response refusals — the model writes 3-5 sentences of "I'm sorry
+# to hear ... I don't have access to your system ... reach out to the
+# support team / search online / back up your data". Looks polite, is
+# pure refusal-by-deflection for a sysadmin question we explicitly told
+# the model it CAN answer with a tool call. We accept it only if at
+# least TWO of these tells fire (single occurrences happen in legit
+# explanations).
+_LONG_REFUSAL_TELLS = (
+    re.compile(r"i\s+don'?t\s+have\s+(?:access\s+to|the\s+ability\s+to\s+access)\s+(?:your|the\s+user'?s)\s+(?:system|machine|files|filesystem|computer)", re.I),
+    re.compile(r"i'?m\s+(?:not\s+able|unable)\s+to\s+(?:provide|access|see|read|browse|search|look\s+up)", re.I),
+    re.compile(r"(?:please\s+)?(?:reach\s+out|contact|consult)\s+(?:the\s+)?(?:support\s+team|administrator|sysadmin|community|documentation)", re.I),
+    re.compile(r"(?:you\s+may\s+want\s+to|you\s+could|consider)\s+(?:try(?:ing)?\s+)?(?:searching|googling|looking\s+(?:up|online))", re.I),
+    re.compile(r"(?:as\s+an\s+ai|i'?m\s+(?:just\s+)?an\s+ai|i\s+do\s+not\s+have\s+(?:personal|real-time|live))", re.I),
+    re.compile(r"(?:keep\s+track\s+of|back(?:\s+|-)up)\s+(?:your\s+)?(?:important\s+)?(?:files|data|paths)\s+(?:regularly|to\s+prevent)", re.I),
+)
+
 
 def _is_refusal(text: str) -> bool:
-    """Heuristic: does this look like a canned safety refusal?
-    Caps at ~320 chars so a long real answer that happens to contain a
-    matching substring doesn't get tripped."""
+    """Heuristic: does this look like a canned safety refusal? Two layers:
+    short stock refusals (≤320 chars) and long "I can't access your
+    system, please contact support" deflections (any length, needs ≥2
+    independent tells to fire)."""
     s = (text or "").strip()
-    if not s or len(s) > 320:
+    if not s:
         return False
-    return any(p.search(s) for p in _REFUSAL_PATTERNS)
+    if len(s) <= 320 and any(p.search(s) for p in _REFUSAL_PATTERNS):
+        return True
+    # Long deflection: count distinct refusal tells. Two or more = canned.
+    hits = sum(1 for p in _LONG_REFUSAL_TELLS if p.search(s))
+    return hits >= 2
 
 
 # Tokens the model knows from the system prompt: schema keys, schema
-# enum values, tool type names. Under `format: "json"` a small model
-# sometimes "satisfies" the contract by filling `final_answer` with one
-# of these words verbatim. The result parses as valid JSON but tells the
-# user nothing — surfacing it as "the answer" is worse than admitting
-# the turn failed, because the rolling memory then caches "purpose" or
-# "task" as if it were a real reply.
+# enum values, tool type names, plus the generic placeholder words
+# (`result`, `value`, `path`, `location`, ...) that small models like
+# to emit when they can't follow through. Under `format: "json"` a 1.5b
+# coder sometimes "satisfies" the contract by filling `final_answer`
+# with one of these verbatim. The result parses as valid JSON but tells
+# the user nothing — surfacing it is worse than admitting the turn
+# failed, because the rolling memory then caches "purpose" or "task"
+# as if it were a real reply.
 _SCHEMA_LEAK_TOKENS = frozenset({
     "thoughts", "tool_calls", "tool_call", "final_answer", "command",
     "purpose", "danger", "safe", "caution", "destructive", "shell",
     "task", "tasks", "response", "answer", "text", "content", "output",
     "message", "reply", "null", "none", "todo", "tbd",
+    # Generic placeholder words. These are never a useful one-word
+    # reply in Basher — a real path starts with "/", a real value
+    # contains digits, etc.
+    "result", "results", "value", "data", "info", "details",
+    "placeholder", "example", "filename", "path", "pathname",
+    "location", "file_location", "file_path", "filepath",
+    "your_answer", "the_answer", "here",
 })
+
+# Snake_case identifier like `file_location`, `path_to_file`,
+# `your_file_path`. Real one-word answers are almost never shaped this
+# way; placeholder fills almost always are.
+_SNAKE_PLACEHOLDER_RE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$")
+
+# Angle-bracketed template like `<filename>`, `<path>`, `<your answer>`.
+_ANGLE_PLACEHOLDER_RE = re.compile(r"^<[^<>]{1,40}>$")
 
 
 def _looks_like_field_leak(answer: str) -> bool:
-    """Detect when `final_answer` is just a schema keyword (or near-empty)
-    instead of an actual user-facing reply.
+    """Detect when `final_answer` is a schema keyword, a snake_case
+    placeholder identifier, or an angle-bracketed template instead of an
+    actual user-facing reply.
 
     Concrete failure modes seen in the wild on q4 coder models:
       final_answer: "purpose"
       final_answer: "task"
       final_answer: "shell"
       final_answer: "command"
+      final_answer: "file_location"
+      final_answer: "path_to_file"
+      final_answer: "<filename>"
     All technically valid JSON strings, all useless.
     """
     s = (answer or "").strip().strip("`'\"")
     if not s:
         return False
-    # A single short token (no whitespace, no newline) is suspicious by
-    # itself. We only flag it when it's also a known schema keyword;
-    # legitimate one-word answers like "yes", "ok", "fedora" pass.
-    if " " not in s and "\n" not in s and 1 <= len(s) <= 24:
-        if s.lower() in _SCHEMA_LEAK_TOKENS:
-            return True
+    # Only consider short single-token answers — anything with whitespace
+    # or newlines is at worst an echo, handled separately.
+    if " " in s or "\n" in s:
+        return False
+    if len(s) > 40:
+        return False
+    if s.lower() in _SCHEMA_LEAK_TOKENS:
+        return True
+    if _ANGLE_PLACEHOLDER_RE.match(s):
+        return True
+    if _SNAKE_PLACEHOLDER_RE.match(s.lower()):
+        return True
     return False
+
+
+# Server-side substitution for `final_answer` values that survive the
+# retry loop. The renderer used to forward strings like "find_folder"
+# verbatim through its "model declined or returned an unusable response:"
+# path — technically honest, but the user just sees a meaningless token
+# and assumes the agent is broken (cf. "Now it just gives me 'find_folder'
+# output when I ask it to find folder called 'saliapp'"). Replacing the
+# leaked token with an actionable English explanation keeps the user in
+# the loop without polluting the rolling memory: the renderer already
+# refuses to summarize / cache turns where `schema_ok` is false, so this
+# substitution never feeds back into future prompts.
+_FAILURE_EXPLANATIONS = {
+    "field_leak": (
+        "The model returned a placeholder token instead of a real reply "
+        "(the previous tool call most likely failed or returned nothing, "
+        "and the corrective retry could not recover). Try rephrasing your "
+        "question with more specifics, or press F2 and run the search "
+        "yourself."
+    ),
+    "echo": (
+        "The model only paraphrased your question instead of answering. "
+        "Rephrase with more specifics, or press F2 and run the command "
+        "yourself."
+    ),
+    "refusal": (
+        "The model refused to answer. Rephrase the question, or press F2 "
+        "and run the command yourself."
+    ),
+    "thinking_only": (
+        "The model planned a tool call but never followed through. Try "
+        "the question again, or press F2 and run the command yourself."
+    ),
+    "empty": (
+        "The model returned an empty response. Try rephrasing the question, "
+        "or press F2 and run the command yourself."
+    ),
+    "non_json": (
+        "The model returned malformed JSON we could not parse. Try "
+        "rephrasing the question, or press F2 and run the command yourself."
+    ),
+    "no_tool_for_state": (
+        "The model tried to answer a question about your machine without "
+        "actually running a shell tool — any path or status it wrote "
+        "would have been a guess (the common failure mode is echoing "
+        "the keyword from the question, or fabricating a path like "
+        "`/usr/local/bin/<name>`). The corrective retry did not produce "
+        "a valid `tool_calls` either. Try rephrasing more concretely "
+        "(e.g. \"find folder named X under $HOME\") or press F2 and run "
+        "`find \"$HOME\" -iname 'NAME*'` yourself."
+    ),
+}
+
+
+def _sanitize_failed_final_answer(norm: dict) -> None:
+    """Mutate `norm` in place so a post-retry failure carries a clear
+    English explanation instead of the raw garbage the model emitted.
+
+    The original text is preserved in `_raw_final_answer` for debug logs.
+    Only fires when `_schema_ok` is already False — successful turns are
+    never touched."""
+    if norm.get("_schema_ok"):
+        return
+    reason = norm.get("_failure_reason") or ""
+    raw_fa = str(norm.get("final_answer") or "").strip()
+    explanation = _FAILURE_EXPLANATIONS.get(reason)
+    if not explanation:
+        return
+    # Preserve the model's actual words so we can debug from logs / the
+    # debug=True API payload, but only when they were short/parseable
+    # enough to be useful. Long refusal essays are not helpful here.
+    norm["_raw_final_answer"] = raw_fa[:240]
+    # Append the leaked token (if short enough) so an operator skimming
+    # the UI can still see exactly what the model said, in a clean form.
+    if raw_fa and len(raw_fa) <= 80 and reason == "field_leak":
+        norm["final_answer"] = (
+            f"{explanation}\n\n_Model emitted:_ `{raw_fa}`"
+        )
+    else:
+        norm["final_answer"] = explanation
+
+
+def _word_tokens(s: str) -> list[str]:
+    """Split a string into word tokens, stripping ALL punctuation —
+    including commas, periods, parens, quotes. The earlier
+    `re.split(r"\\s+", s)` version left `saliapp,` as one token, which
+    let single-noun echoes like ("I have lost folder called saliapp,
+    can you find it?" -> "saliapp") slip past `_looks_like_echo`
+    because `saliapp != saliapp,`."""
+    return [t for t in re.split(r"\W+", (s or "").lower()) if t]
 
 
 def _looks_like_echo(query: str, answer: str) -> bool:
@@ -543,6 +765,8 @@ def _looks_like_echo(query: str, answer: str) -> bool:
     Concrete failure modes seen in the wild on q4 coder models:
       user: "Can you find it with that information?"
       answer: "find it with that information"
+      user: "I have lost folder called saliapp, can you find it?"
+      answer: "saliapp"
     The model is JSON-compliant but said nothing useful.
     """
     q = (query or "").lower().strip().strip("?!.")
@@ -559,10 +783,10 @@ def _looks_like_echo(query: str, answer: str) -> bool:
         return True
     # Token overlap: >=85% of answer tokens appear in the query, AND no
     # answer token introduces new content (e.g. a path, command, number).
-    a_tokens = [t for t in re.split(r"\s+", a) if t]
+    a_tokens = _word_tokens(a)
     if not a_tokens:
         return False
-    q_tokens = set(re.split(r"\s+", q))
+    q_tokens = set(_word_tokens(q))
     overlap = sum(1 for t in a_tokens if t in q_tokens) / len(a_tokens)
     has_signal = any(
         ("/" in t) or t.startswith("$") or t.startswith("`") or
@@ -570,6 +794,87 @@ def _looks_like_echo(query: str, answer: str) -> bool:
         for t in a_tokens
     )
     return overlap >= 0.85 and not has_signal
+
+
+# -----------------------------------------------------------------------
+# State-question detector
+# -----------------------------------------------------------------------
+# A "state question" is one whose accurate answer is on the user's
+# machine RIGHT NOW (file location, port status, running process,
+# installed package, etc.) — not anything the model can answer from
+# pre-training. For these, emitting a `final_answer` without first
+# running a `tool_calls` is always wrong, regardless of how plausible
+# the answer looks. This is the failure mode behind the entire
+# "saliapp" / "/usr/local/bin/saliapp" hallucination chain: the model
+# never actually searched, it just guessed.
+#
+# We cover English and Finnish because the project is Finnish-authored
+# and the user routinely mixes both. A query that matches ANY of these
+# patterns AND comes back with `tool_calls == []` is flagged as
+# `no_tool_for_state` and gets ONE forced corrective retry that
+# explicitly demands a shell command.
+_STATE_QUESTION_PATTERNS = (
+    # English: find / locate / lost / search intent for a file or folder.
+    re.compile(r"\bfind\s+(?:me\s+)?(?:the\s+|my\s+|a\s+|an\s+|it|them|this|that|some\b)", re.I),
+    re.compile(r"\bfind\s+\w+\s*(?:folder|file|directory|dir)\b", re.I),
+    re.compile(r"\bfind\s+(?:folder|file|directory|dir|path)\s+(?:called|named)\b", re.I),
+    re.compile(r"\b(?:locate|search\s+for)\b", re.I),
+    re.compile(r"\b(?:lost|misplaced)\b", re.I),
+    re.compile(r"\bi\s+(?:have\s+)?(?:lost|misplaced)\b", re.I),
+    re.compile(r"\bi'?ve?\s+(?:lost|misplaced)\b", re.I),
+    re.compile(r"\bcan(?:not|'?\s*t)\s+find\b", re.I),
+    # English: "where is / where can I find / where's" intent.
+    re.compile(r"\bwhere\s+(?:is|are|can\s+i\s+(?:find|see))\b", re.I),
+    re.compile(r"\bwhere'?s\b", re.I),
+    # English: "what(')s the path/location/version/kernel/..." — answer
+    # is on this machine right now, not in pre-training. `what's`,
+    # `whats`, `what is` all accepted (small models drop apostrophes).
+    re.compile(r"\bwhat(?:'?s|\s+is)?\s+(?:the\s+)?(?:path|location|directory|folder)\s+(?:for|to|of)\b", re.I),
+    re.compile(r"\bpath\s+(?:for|to|of)\s+(?:the\s+|my\s+)?\w", re.I),
+    re.compile(r"\bwhat(?:'?s|\s+is)?\s+(?:my\s+)?(?:kernel|os|distro|release|hostname|user|shell|uptime|ip|cpu|memory|ram)\b", re.I),
+    re.compile(r"\bwhat\s+(?:version\s+of\s+\w+|kernel|os|distro)\s+(?:am\s+i|do\s+i|is\s+(?:my|on))\b", re.I),
+    re.compile(r"\bam\s+i\s+(?:on|using|running)\s+\w", re.I),
+    re.compile(r"\bwhich\s+(?:version|kernel|distro)\b", re.I),
+    # English: state questions about running processes / ports / packages.
+    re.compile(r"\bwhat(?:'?s|\s+is)?\s+(?:on|running|listening|using)\s+(?:port|pid)\b", re.I),
+    re.compile(r"\bis\s+\w+\s+(?:installed|running|enabled|active|loaded)\b", re.I),
+    re.compile(r"\bdo\s+i\s+have\s+(?:\w+\s+)?(?:installed|running)\b", re.I),
+    re.compile(r"\bdo\s+i\s+have\s+\w+\s*\?", re.I),
+    re.compile(r"\b(?:list|show\s+me)\s+(?:my\s+)?(?:containers|processes|ports|services|units|disks|mounts)\b", re.I),
+    # Finnish: missä on / mistä löytyy / kadottanut / hukassa.
+    re.compile(r"\bmiss[äa]\s+(?:on|sijaitsee|l[öo]ytyy)\b", re.I),
+    re.compile(r"\bmist[äa]\s+l[öo]yty\w*\b", re.I),
+    re.compile(r"\bkadottan(?:ut|i)\b", re.I),
+    re.compile(r"\bhukass(?:a|sa)\b", re.I),
+    re.compile(r"\b(?:l[öo]yd[äa]\w*|etsi\w*)\s+(?:kansio|tiedosto|polku)", re.I),
+    re.compile(r"\bonko\s+\w+\s+(?:asennett\w+|k[äa]ynniss[äa]|aktiivin\w+)\b", re.I),
+    re.compile(r"\bmik[äa]\s+on\s+(?:polku|kansio|tiedosto)\b", re.I),
+)
+
+# Phrases that LOOK stateful but are actually general-knowledge questions
+# the model should answer from training. We bypass the state-question
+# check when ANY of these match — e.g. "how do I find process IDs" is a
+# how-to, not "find a specific file for me".
+_STATE_QUESTION_BLOCKLIST = (
+    re.compile(r"\bhow\s+(?:do|can|to)\b", re.I),
+    re.compile(r"\bwhat\s+(?:is|does|are)\s+(?:the\s+)?(?:difference|command|meaning|purpose)\b", re.I),
+    re.compile(r"\b(?:tutorial|guide|example|documentation)\b", re.I),
+    re.compile(r"\bmit[äa]\s+(?:tarkoitt\w+|on\s+\w+\s+komento)\b", re.I),
+)
+
+
+def _is_state_question(query: str) -> bool:
+    """True when the query needs a fresh shell tool call to answer
+    accurately. We use this to refuse first-turn `final_answer`s that
+    skip the tool — see `no_tool_for_state` in `_normalize_response`."""
+    q = (query or "").strip()
+    if not q or len(q) > 600:
+        # Very long messages are usually multi-paragraph explanations
+        # or pasted logs; don't try to classify them with regex.
+        return False
+    if any(p.search(q) for p in _STATE_QUESTION_BLOCKLIST):
+        return False
+    return any(p.search(q) for p in _STATE_QUESTION_PATTERNS)
 
 
 # ---------------------------------------------------------------------------
@@ -859,23 +1164,89 @@ def format_tool_result_message(
 
     The role is `user` (Ollama doesn't always honour `tool` role for small
     models), but the content is clearly delimited so the model parses it.
+
+    Note on guidance text: the model often emits a `find_folder` /
+    `path_to_file` placeholder when it sees `exit_code: 1` + empty stdout
+    (the tool errored or returned nothing). We give it a per-outcome
+    decision tree right after the result so it has a concrete next move
+    instead of pattern-matching a JSON token. Small models do MUCH
+    better with "if X then Y" cheat-sheets than with abstract advice.
     """
-    stdout = truncate_for_history(str(result.get("stdout", "")))
-    stderr = truncate_for_history(str(result.get("stderr", "")))
+    stdout_raw = str(result.get("stdout", "") or "")
+    stderr_raw = str(result.get("stderr", "") or "")
+    stdout = truncate_for_history(stdout_raw)
+    stderr = truncate_for_history(stderr_raw)
+    exit_code = result.get("exit_code", result.get("code", "unknown"))
+    timed_out = bool(result.get("timed_out", False))
+
+    # Tailor the post-result coaching to what actually happened. A small
+    # model can latch onto the wrong reaction (e.g. emit `find_folder`
+    # placeholder when a find returned nothing) — being explicit here
+    # avoids that whole class of failure.
+    try:
+        ec_int = int(exit_code) if exit_code not in ("unknown", None) else None
+    except (TypeError, ValueError):
+        ec_int = None
+    stdout_empty = stdout_raw.strip() == ""
+    stderr_empty = stderr_raw.strip() == ""
+
+    if timed_out:
+        guidance = (
+            "The command TIMED OUT. Do NOT repeat it as-is. Either narrow "
+            "the search (smaller `-maxdepth`, more specific pattern, "
+            "scope to a directory), or emit a `final_answer` that tells "
+            "the user the search timed out and suggests a narrower command "
+            "for them to run."
+        )
+    elif ec_int is not None and ec_int != 0:
+        guidance = (
+            f"The command FAILED with exit_code={ec_int}. Read the stderr "
+            "above to understand why. Do NOT repeat the same command and "
+            "do NOT emit a placeholder token like `find_folder` / `result` "
+            "/ `path_to_file` as `final_answer`. Pick exactly ONE next "
+            "action:\n"
+            "  (a) If you can fix the command (typo, wrong path, missing "
+            "flag, needs `2>/dev/null`), emit a corrected `tool_calls`.\n"
+            "  (b) If the command itself is wrong for the question, "
+            "SWITCH tools (e.g. `ls` -> `find -iname`, `find` -> `locate`, "
+            "`command -v` -> `rpm -q`).\n"
+            "  (c) If you have enough info to answer despite the error, "
+            "emit a real `final_answer` (1-2 sentences + fenced ```bash``` "
+            "block) that honestly says what was tried, what failed, and "
+            "what the user can run themselves."
+        )
+    elif stdout_empty and stderr_empty:
+        guidance = (
+            "The command SUCCEEDED but produced NO output — for a search "
+            "(`find`/`grep`/`locate`/`command -v`) that almost always means "
+            "nothing was found. Do NOT repeat the same command and do NOT "
+            "emit a placeholder token like `find_folder` as `final_answer`. "
+            "Pick ONE: (a) broaden the search (larger `-maxdepth`, drop "
+            "`-type`, broader pattern, search a different root like `/`, "
+            "`/etc`, `/var`, `/opt`), or (b) emit a real `final_answer` "
+            "that says clearly that nothing matched and shows the exact "
+            "command in a fenced ```bash``` block so the user can refine it."
+        )
+    else:
+        guidance = (
+            "Reason about the result and reply with the JSON object only. "
+            "If the result answers the question, output `final_answer` now "
+            "(real markdown sentence + fenced code block, NEVER a single "
+            "schema keyword or placeholder token like `find_folder`). If "
+            "the result is partial or noisy, you may emit ONE more "
+            "`tool_calls` to narrow it down."
+        )
+
     body = (
         f"[tool_result id={tool_call_id} command={json.dumps(command)}]\n"
-        f"exit_code: {result.get('exit_code', result.get('code', 'unknown'))}\n"
-        f"timed_out: {bool(result.get('timed_out', False))}\n"
+        f"exit_code: {exit_code}\n"
+        f"timed_out: {timed_out}\n"
         f"--- stdout ---\n{stdout}\n"
         f"--- stderr ---\n{stderr}\n"
         f"[/tool_result]\n\n"
-        f"Reason about the result and reply with the JSON object only. "
-        f"If the result answers the question, output `final_answer` now "
-        f"(real markdown sentence + fenced code block, NEVER a single "
-        f"schema keyword). If the result was empty / wrong directory / "
-        f"not found, do NOT repeat the same command — SWITCH tools "
-        f"(e.g. `ls` → `find -iname`, `find` → broader `-maxdepth` or "
-        f"`locate`, `command -v` → `rpm -q`). Max 2 tool_calls per turn."
+        f"{guidance}\n"
+        f"Max 2 tool_calls per turn. Match the language of the original "
+        f"user question (not this system note)."
     )
     return {"role": "user", "content": body}
 
@@ -906,14 +1277,64 @@ _RETRY_NUDGES = {
         "contains NEW information. Do not echo the user's words."
     ),
     "field_leak": (
-        "Your previous `final_answer` was a single schema keyword "
-        "(like \"purpose\", \"task\", \"command\", or \"shell\") instead of "
-        "a real reply. `final_answer` MUST be the actual user-facing "
-        "markdown answer: 1-3 sentences of plain prose, optionally "
-        "followed by a fenced ```bash``` block. Output the JSON object "
-        "now with EITHER a real tool_call OR a real `final_answer`."
+        "Your previous `final_answer` was a placeholder token (a schema "
+        "keyword like \"purpose\"/\"command\"/\"shell\", a snake_case "
+        "identifier like \"file_location\"/\"path_to_file\", or an angle "
+        "template like \"<filename>\") instead of a real reply. "
+        "`final_answer` MUST be the actual user-facing markdown answer: "
+        "1-3 sentences of plain prose, optionally followed by a fenced "
+        "```bash``` block, containing REAL values from the conversation "
+        "(never invented paths like \"/home/user/...\"). If you do not "
+        "have the real value yet, output a `tool_calls` (e.g. "
+        "`find \"$HOME\" -iname '...'`) instead. Output the JSON object now."
+    ),
+    "no_tool_for_state": (
+        "Your previous reply was a `final_answer` to a question that "
+        "requires looking at the user's machine right now (file/folder "
+        "location, running process, port, installed package, etc.). You "
+        "did NOT run any tool, so any path, name, or status you wrote "
+        "is a guess — that is forbidden. Emit a `tool_calls` NOW with "
+        "a concrete shell one-liner (e.g. "
+        "`find \"$HOME\" -maxdepth 6 -iname 'saliapp*' 2>/dev/null | head -20` "
+        "for \"find folder X\", `ss -tulpn | grep -E ':PORT\\b'` for "
+        "\"what's on port N\", `rpm -q PACKAGE` for \"is X installed\"). "
+        "`final_answer` is forbidden until you have a real tool result. "
+        "Do NOT echo the keyword from the question (like writing "
+        "\"saliapp\" by itself) and do NOT fabricate a path "
+        "(like \"/usr/local/bin/saliapp\")."
     ),
 }
+
+
+# Forced second-pass reflection. Fires only when the model wants to commit
+# a `final_answer` *without* having run any tool — i.e. the whole turn was
+# one thinking pass. Policy: never let a single pass commit. We require
+# the model to look at its own draft, sanity-check the facts, and either
+#   (a) re-emit the same answer (now with explicit verification thoughts), or
+#   (b) switch to a tool_call when reflection reveals it's guessing.
+# Tool-mediated turns already get >= 2 thinking passes for free (initial
+# plan -> tool result -> post-tool reasoning), so we skip reflection there.
+MIN_THINKING_PASSES = 2
+
+_REFLECTION_PROMPT = (
+    "Reflect once more on your draft answer above before committing. "
+    "This is the SECOND thinking pass — required before any final answer.\n\n"
+    "Verify, in order:\n"
+    "  1. Are every path, filename, package, port, version, and command in "
+    "the draft GROUNDED in the actual conversation (a tool result or the "
+    "user's own message)? If anything is invented or guessed, you MUST "
+    "switch to a `tool_calls` to look it up.\n"
+    "  2. Did you actually answer the user's question, or did you drift "
+    "(echo it back, suggest searching online, deflect)? If so, fix it.\n"
+    "  3. Is the answer in the user's language?\n\n"
+    "Now output the JSON object ONCE MORE with:\n"
+    "  - `thoughts`: a short note about what you re-checked this pass "
+    "(NOT a copy of the previous thoughts).\n"
+    "  - EITHER a refined / re-emitted `final_answer` (real markdown, "
+    "1-3 sentences + optional fenced ```bash``` block), OR a `tool_calls` "
+    "if reflection revealed a missing fact.\n"
+    "Never both. Never neither."
+)
 
 
 def run_agent_turn(
@@ -924,15 +1345,32 @@ def run_agent_turn(
     model: str,
     num_ctx: int | None = None,
     _allow_retry: bool = True,
+    _allow_reflection: bool = True,
 ) -> dict:
     """Run one assistant turn. Returns the normalized response dict plus
     the raw model output for debugging.
 
-    If the first response is a recoverable failure (`thinking_only`,
-    `refusal`, `echo`), we send ONE corrective follow-up message before
-    giving up. This costs an extra round-trip on failure but reliably
-    converts "I will search for it." (no action) into the actual
-    `find …` tool_call on q4 coder models.
+    Two extra round-trips can happen here, both gated and bounded:
+
+    1. **Retry on schema failure.** If the first response is a
+       recoverable failure (`thinking_only`, `refusal`, `echo`,
+       `field_leak`), we send ONE corrective follow-up. This converts
+       "I will search for it." (no action) into the actual `find ...`
+       tool_call on q4 coder models.
+
+    2. **Forced reflection (>= 2 thinking passes).** If the (possibly
+       retried) response is ready to commit a `final_answer` *without*
+       having run any tool — i.e. the whole turn would be a single
+       thinking pass — we send ONE reflection prompt asking the model
+       to verify its draft. The reflected response then either re-emits
+       a refined `final_answer` or escalates to a `tool_calls` (which
+       the client will gate behind a permission prompt as usual).
+       Tool-mediated turns already get >= 2 thinking passes for free,
+       so they skip reflection.
+
+    The returned dict carries `thinking_steps` (a list of thought-strings,
+    one per pass) so the UI can show the chain of reasoning, plus
+    `_retry_reason` when a corrective nudge was needed.
     """
     raw = _ollama_chat_with_fallback(
         messages,
@@ -952,6 +1390,7 @@ def run_agent_turn(
             break
     norm = _normalize_response(raw, user_query=last_user)
 
+    retry_reason: str | None = None
     reason = norm.get("_failure_reason")
     if (
         _allow_retry
@@ -978,10 +1417,75 @@ def run_agent_turn(
             # Otherwise stick with the original — a worse retry would
             # mislead the caller into thinking we made progress.
             if norm2.get("_schema_ok"):
-                norm2["raw"] = raw2
-                norm2["_retry_reason"] = reason
-                return norm2
+                norm = norm2
+                raw = raw2
+                retry_reason = reason
 
+    # ------------------------------------------------------------------
+    # Forced reflection pass (the "think at least twice" policy).
+    # ------------------------------------------------------------------
+    # Trigger only when the model is about to commit a `final_answer`
+    # straight from a single thinking pass (no tool was used). If we
+    # already have tool_calls queued, the caller will execute them and
+    # come back with a tool_result message — the post-tool turn IS the
+    # second thinking pass, so reflection there would just be wasted
+    # round-trips.
+    thinking_steps: list[str] = []
+    if (
+        _allow_reflection
+        and norm.get("_schema_ok")
+        and norm.get("final_answer")
+        and not norm.get("tool_calls")
+        and MIN_THINKING_PASSES >= 2
+    ):
+        first_thoughts = (norm.get("thoughts") or "").strip()
+
+        reflection_messages = list(messages) + [
+            {"role": "assistant", "content": raw},
+            {"role": "user", "content": _REFLECTION_PROMPT},
+        ]
+        try:
+            raw_r = _ollama_chat_with_fallback(
+                reflection_messages,
+                chat_url=chat_url,
+                generate_url=generate_url,
+                model=model,
+                num_ctx=num_ctx,
+            )
+        except Exception:
+            raw_r = ""
+
+        adopted_reflection = False
+        if raw_r:
+            norm_r = _normalize_response(raw_r, user_query=last_user)
+            # Only adopt the reflected response if it itself passes the
+            # contract — a malformed second pass shouldn't downgrade a
+            # clean first pass.
+            if norm_r.get("_schema_ok"):
+                second_thoughts = (norm_r.get("thoughts") or "").strip()
+                if first_thoughts:
+                    thinking_steps.append(first_thoughts)
+                if second_thoughts:
+                    thinking_steps.append(second_thoughts)
+                norm = norm_r
+                raw = raw_r
+                adopted_reflection = True
+
+        if not adopted_reflection and first_thoughts:
+            # Reflection failed (network, schema-broken second pass). We
+            # still expose the single thinking pass we have so the UI
+            # can show it; the caller's "schema_ok" remains as-is.
+            thinking_steps.append(first_thoughts)
+
+    if thinking_steps:
+        norm["thinking_steps"] = thinking_steps
+    if retry_reason and not norm.get("_retry_reason"):
+        norm["_retry_reason"] = retry_reason
+    # Last-mile substitution: if everything above failed and `final_answer`
+    # is still a placeholder token / refusal essay / paraphrased echo,
+    # replace it with a clear English explanation so the renderer can show
+    # the user something actionable instead of `find_folder`.
+    _sanitize_failed_final_answer(norm)
     norm["raw"] = raw
     return norm
 
@@ -1009,17 +1513,24 @@ _SUMMARY_SYSTEM_PROMPT = (
     '  "next_step": "<a single concrete follow-up the user is likely to ask next, derived ONLY from topics actually present in the exchange. Empty string by default.>"\n'
     "}\n\n"
     "Hard rules — violating any of these means output \"\" for that field:\n"
-    "1. Write in the user\'s language (Finnish in, Finnish out).\n"
-    "2. Never invent facts, commands, packages, or tools that are NOT in the exchange.\n"
-    "   In particular: do NOT suggest podman, systemd, dnf, htop, etc. unless the user "
-    "   or assistant ALREADY mentioned them.\n"
-    "3. `next_step` must be runnable as a fresh user prompt (e.g. \"show kernel version\", "
-    "   \"asenna git\"), NOT meta-commentary like \"the user might want to...\".\n"
-    "4. If the user just said hello / what\'s up / thanks / a single word with no topic, "
-    "   set both `summary` and `next_step` to \"\".\n"
-    "5. If the assistant\'s answer was empty, an error, or starts with \"(\", "
-    "   set both fields to \"\".\n"
-    "6. Keep `summary` under ~240 chars and `next_step` under ~80 chars."
+    "1. ALWAYS write `summary` in English. It is internal memory for the "
+    "   next turn's model, NOT shown to the user. Mixed-language summaries "
+    "   bias the next turn into switching languages mid-conversation.\n"
+    "2. `next_step` MUST be in the same language as the user's MOST RECENT "
+    "   message (the question they actually asked). It is rendered as a "
+    "   hint in the terminal — the user sees this string.\n"
+    "3. Never invent facts, commands, packages, or tools that are NOT in "
+    "   the exchange. In particular: do NOT suggest podman, systemd, dnf, "
+    "   htop, etc. unless the user or assistant ALREADY mentioned them.\n"
+    "4. `next_step` must be runnable as a fresh user prompt (e.g. "
+    "   \"show kernel version\", \"asenna git\"), NOT meta-commentary like "
+    "   \"the user might want to...\".\n"
+    "5. If the user just said hello / what's up / thanks / a single word "
+    "   with no topic, set both `summary` and `next_step` to \"\".\n"
+    "6. If the assistant's answer was empty, an error, starts with \"(\", "
+    "   or starts with \"The model\" (server failure explanation), set "
+    "   both fields to \"\".\n"
+    "7. Keep `summary` under ~240 chars and `next_step` under ~80 chars."
 )
 
 
@@ -1047,8 +1558,23 @@ def summarize_turn(
     # Cheap guard: skip the LLM round-trip entirely on inputs that are
     # almost guaranteed to produce hallucinated next_steps.
     #   - synthetic placeholder answers ("(no answer)", "(no response)", ...)
+    #   - server-side failure explanations (sanitized field_leak / refusal
+    #     / echo strings — these start with "The model ..." and are
+    #     emitted by `_sanitize_failed_final_answer` when the renderer
+    #     should NOT cache the turn; summarizing them poisons memory
+    #     with "the model could not answer" recap text).
     #   - tiny / smalltalk queries with no topic for the model to latch onto
     if final_answer.startswith("(") and final_answer.endswith(")"):
+        return {"summary": "", "next_step": ""}
+    _SERVER_FAILURE_PREFIXES = (
+        "The model returned a placeholder",
+        "The model only paraphrased",
+        "The model refused",
+        "The model planned a tool call",
+        "The model returned an empty response",
+        "The model returned malformed JSON",
+    )
+    if any(final_answer.startswith(p) for p in _SERVER_FAILURE_PREFIXES):
         return {"summary": "", "next_step": ""}
     _SMALLTALK = {
         "hi", "hei", "moi", "moikka", "terve", "hey", "hello", "yo",
