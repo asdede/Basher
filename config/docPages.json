@@ -1,7 +1,7 @@
 {
   "fedora_quick_docs": {
     "type": "html_folder",
-    "path": "docs/quick-docs"
+    "path": "docs/quick-docs/modules/ROOT/pages"
   },
   "bash_docs": [
     "https://man7.org/linux/man-pages/man1/bash.1.html"
@@ -24,5 +24,5 @@
     "type": "docker_cli",
     "url": "https://docs.docker.com/reference/cli/docker/"
   },
-  "man_pages": ["https://linuxcommand.org/lc3_man_page_index.php"]
+  "man_pages": ["https://www.linuxcommand.org/lc3_man_page_index.php"]
 }
