@@ -10,45 +10,87 @@
           "id": "fedora-dnf-update",
           "query": "How do I update all packages on Fedora?",
           "review_type": "auto",
-          "expected_contains": ["dnf", "update", "upgrade"],
-          "expected_collections": ["fedora_quick_docs"],
-          "must_not_contain": ["apt-get", "apt "],
+          "expected_contains": [
+            "dnf",
+            "update",
+            "upgrade"
+          ],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
+          "must_not_contain": [
+            "apt-get",
+            "apt "
+          ],
           "human_rubric": null
         },
         {
           "id": "fedora-install-package",
           "query": "How do I install a package on Fedora?",
           "review_type": "auto",
-          "expected_contains": ["dnf", "install"],
-          "expected_collections": ["fedora_quick_docs"],
-          "must_not_contain": ["apt-get", "apt install"],
+          "expected_contains": [
+            "dnf",
+            "install"
+          ],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
+          "must_not_contain": [
+            "apt-get",
+            "apt install"
+          ],
           "human_rubric": null
         },
         {
           "id": "fedora-search-package",
           "query": "How do I search for a package on Fedora?",
           "review_type": "auto",
-          "expected_contains": ["dnf", "search"],
-          "expected_collections": ["fedora_quick_docs"],
-          "must_not_contain": ["apt-cache search", "apt search"],
+          "expected_contains": [
+            "dnf",
+            "search"
+          ],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
+          "must_not_contain": [
+            "apt-cache search",
+            "apt search"
+          ],
           "human_rubric": null
         },
         {
           "id": "fedora-remove-package",
           "query": "How do I remove a package on Fedora?",
           "review_type": "auto",
-          "expected_contains": ["dnf", "remove"],
-          "expected_collections": ["fedora_quick_docs"],
-          "must_not_contain": ["apt remove", "apt-get remove"],
+          "expected_contains": [
+            "dnf",
+            "remove"
+          ],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
+          "must_not_contain": [
+            "apt remove",
+            "apt-get remove"
+          ],
           "human_rubric": null
         },
         {
           "id": "no-hallucination-command",
           "query": "What exact command do I use to show Fedora version?",
           "review_type": "auto",
-          "expected_contains": ["fedora", "version", "release"],
-          "must_not_contain": ["ver", "vers"],
-          "expected_collections": ["fedora_quick_docs"],
+          "expected_contains": [
+            "fedora",
+            "version",
+            "release"
+          ],
+          "must_not_contain": [
+            "ver",
+            "vers"
+          ],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
           "human_rubric": "If auto-pass, human can still check: command must be real (e.g. /etc/fedora-release or hostnamectl or similar from docs)."
         },
         {
@@ -56,16 +98,26 @@
           "query": "In one sentence, what is SELinux on Fedora?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["fedora_quick_docs"],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
           "human_rubric": "Answer should be concise, correct, and grounded in Fedora docs. No long copy-paste from docs."
         },
         {
           "id": "fedora-trap-ubuntu",
           "query": "How do I install packages on Fedora? Use the same command I use on Ubuntu.",
           "review_type": "auto",
-          "expected_contains": ["dnf", "install"],
-          "expected_collections": ["fedora_quick_docs"],
-          "must_not_contain": ["apt", "apt-get"],
+          "expected_contains": [
+            "dnf",
+            "install"
+          ],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
+          "must_not_contain": [
+            "apt",
+            "apt-get"
+          ],
           "human_rubric": "Hallucination test: must not suggest apt on Fedora."
         },
         {
@@ -73,24 +125,40 @@
           "query": "Should I use yum or dnf on modern Fedora?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["fedora_quick_docs"],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
           "human_rubric": "Answer should reflect Fedora docs: dnf is the default; yum may be a symlink. No confident wrong answer."
         },
         {
           "id": "fedora-repo-list",
           "query": "How do I list enabled repositories on Fedora?",
           "review_type": "auto",
-          "expected_contains": ["dnf", "repolist", "repo"],
-          "expected_collections": ["fedora_quick_docs"],
-          "must_not_contain": ["apt-add-repository", "add-apt-repository"],
+          "expected_contains": [
+            "dnf",
+            "repolist",
+            "repo"
+          ],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
+          "must_not_contain": [
+            "apt-add-repository",
+            "add-apt-repository"
+          ],
           "human_rubric": null
         },
         {
           "id": "fedora-clean-cache",
           "query": "How do I clean dnf cache to free disk space?",
           "review_type": "auto",
-          "expected_contains": ["dnf", "clean"],
-          "expected_collections": ["fedora_quick_docs"],
+          "expected_contains": [
+            "dnf",
+            "clean"
+          ],
+          "expected_collections": [
+            "fedora_quick_docs"
+          ],
           "human_rubric": null
         },
         {
@@ -98,7 +166,10 @@
           "query": "Should I use Docker or Podman on Fedora?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["fedora_quick_docs", "docker_docs"],
+          "expected_collections": [
+            "fedora_quick_docs",
+            "docker_docs"
+          ],
           "human_rubric": "Answer should reflect Fedora/Podman stance if in docs. Helpfulness and appropriateness for a Fedora user."
         },
         {
@@ -119,50 +190,91 @@
           "id": "git-status",
           "query": "How do I check the status of my git repository?",
           "review_type": "auto",
-          "expected_contains": ["git", "status"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "git",
+            "status"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "git-add-commit",
           "query": "How do I add all files and commit in git?",
           "review_type": "auto",
-          "expected_contains": ["git", "add", "commit"],
-          "expected_collections": ["man_pages"],
-          "must_not_contain": ["git commit -all", "git add commit"],
+          "expected_contains": [
+            "git",
+            "add",
+            "commit"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
+          "must_not_contain": [
+            "git commit -all",
+            "git add commit"
+          ],
           "human_rubric": null
         },
         {
           "id": "git-log-oneline",
           "query": "How do I show a short one-line log of commits?",
           "review_type": "auto",
-          "expected_contains": ["git", "log", "oneline"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "git",
+            "log",
+            "oneline"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "git-branch-create",
           "query": "How do I create a new branch in git?",
           "review_type": "auto",
-          "expected_contains": ["git", "branch", "checkout"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "git",
+            "branch",
+            "checkout"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "git-diff-staged",
           "query": "How do I see what I staged for commit?",
           "review_type": "auto",
-          "expected_contains": ["git", "diff", "staged"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "git",
+            "diff",
+            "staged"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "git-undo-last-commit",
           "query": "How do I undo my last commit but keep the changes?",
           "review_type": "auto",
-          "expected_contains": ["reset", "soft", "HEAD"],
-          "expected_collections": ["man_pages"],
-          "must_not_contain": ["revert", "undo"],
+          "expected_contains": [
+            "reset",
+            "soft",
+            "HEAD"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
+          "must_not_contain": [
+            "revert",
+            "undo"
+          ],
           "human_rubric": "Should suggest git reset --soft HEAD~1 or equivalent; must not suggest non-existent 'git undo'."
         },
         {
@@ -170,7 +282,9 @@
           "query": "I reset and lost a commit. How do I find the lost commit hash?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["man_pages"],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": "Should mention reflog. Answer must be from docs; no made-up commands."
         },
         {
@@ -178,40 +292,67 @@
           "query": "What is the difference between git merge and git rebase?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["man_pages"],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": "Accurate, doc-grounded. Check for hallucination (e.g. wrong semantics)."
         },
         {
           "id": "git-cherry-pick",
           "query": "How do I apply a single commit from another branch onto my current branch?",
           "review_type": "auto",
-          "expected_contains": ["cherry-pick", "cherry pick"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "cherry-pick",
+            "cherry pick"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "git-stash",
           "query": "How do I temporarily save my uncommitted changes and switch branch?",
           "review_type": "auto",
-          "expected_contains": ["stash", "git stash"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "stash",
+            "git stash"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "git-hallucination-fake-cmd",
           "query": "What is the command to sync my branch with remote? I think it's git sync.",
           "review_type": "auto",
-          "expected_contains": ["pull", "fetch", "merge", "rebase"],
-          "expected_collections": ["man_pages"],
-          "must_not_contain": ["git sync"],
+          "expected_contains": [
+            "pull",
+            "fetch",
+            "merge",
+            "rebase"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
+          "must_not_contain": [
+            "git sync"
+          ],
           "human_rubric": "Hallucination test: 'git sync' does not exist; model should suggest pull/fetch+merge or similar."
         },
         {
           "id": "git-remote-add",
           "query": "How do I add a remote called origin pointing to a URL?",
           "review_type": "auto",
-          "expected_contains": ["remote", "add", "origin"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "remote",
+            "add",
+            "origin"
+          ],
+          "expected_collections": [
+            "git_docs"
+          ],
           "human_rubric": null
         }
       ]
@@ -224,41 +365,75 @@
           "id": "bash-loop-files",
           "query": "How do I loop over all .txt files in a directory in bash?",
           "review_type": "auto",
-          "expected_contains": ["for", "in", "*.txt", "do", "done"],
-          "expected_collections": ["bash_docs"],
-          "must_not_contain": ["foreach"],
+          "expected_contains": [
+            "for",
+            "in",
+            "*.txt",
+            "do",
+            "done"
+          ],
+          "expected_collections": [
+            "bash_docs"
+          ],
+          "must_not_contain": [
+            "foreach"
+          ],
           "human_rubric": null
         },
         {
           "id": "bash-array-syntax",
           "query": "What is the syntax for bash arrays?",
           "review_type": "auto",
-          "expected_contains": ["(", ")", "array", "declare"],
-          "expected_collections": ["bash_docs"],
+          "expected_contains": [
+            "(",
+            ")",
+            "array",
+            "declare"
+          ],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "bash-conditional",
           "query": "How do I check if a file exists in a bash script?",
           "review_type": "auto",
-          "expected_contains": ["test", "-f", "if", "["],
-          "expected_collections": ["bash_docs", "man_pages"],
+          "expected_contains": [
+            "test",
+            "-f",
+            "if",
+            "["
+          ],
+          "expected_collections": [
+            "bash_docs",
+            "man_pages"
+          ],
           "human_rubric": null
         },
         {
           "id": "bash-echo-variable",
           "query": "How do I print the value of a variable in bash?",
           "review_type": "auto",
-          "expected_contains": ["echo", "$"],
-          "expected_collections": ["bash_docs"],
+          "expected_contains": [
+            "echo",
+            "$"
+          ],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "bash-read-input",
           "query": "How do I read user input into a variable in bash?",
           "review_type": "auto",
-          "expected_contains": ["read"],
-          "expected_collections": ["bash_docs"],
+          "expected_contains": [
+            "read"
+          ],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": null
         },
         {
@@ -266,7 +441,9 @@
           "query": "What is the difference between [ and [[ in bash?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["bash_docs"],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": "Answer should be accurate ([[ is bash keyword, [ is command). Check that it uses documentation and does not hallucinate."
         },
         {
@@ -274,7 +451,9 @@
           "query": "Explain what a pipe does in bash and give one example.",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["bash_docs"],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": "Clarity, correctness of explanation, and relevance of example. Response should use docs when explaining."
         },
         {
@@ -282,7 +461,9 @@
           "query": "When should I use double quotes vs single quotes in bash?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["bash_docs"],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": "Correctness (variable expansion in double, literal in single). Grounded in documentation."
         },
         {
@@ -290,32 +471,58 @@
           "query": "What does set -e do in a bash script?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["bash_docs"],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": "RAG check: answer should reflect retrieved documentation (exit on error). Note if answer seems to come from context vs generic knowledge."
         },
         {
           "id": "bash-set-u",
           "query": "What does set -u do in bash?",
           "review_type": "auto",
-          "expected_contains": ["unset", "variable", "undefined", "nounset"],
-          "expected_collections": ["bash_docs"],
+          "expected_contains": [
+            "unset",
+            "variable",
+            "undefined",
+            "nounset"
+          ],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "bash-subshell",
           "query": "How do I run a command in a subshell in bash?",
           "review_type": "auto",
-          "expected_contains": ["(", ")", "subshell"],
-          "expected_collections": ["bash_docs"],
+          "expected_contains": [
+            "(",
+            ")",
+            "subshell"
+          ],
+          "expected_collections": [
+            "bash_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "bash-trap-hallucination",
           "query": "How do I catch errors in bash? I heard there is try/catch.",
           "review_type": "auto",
-          "expected_contains": ["trap", "set -e", "ERR", "if"],
-          "expected_collections": ["bash_docs"],
-          "must_not_contain": ["try", "catch", "try/catch"],
+          "expected_contains": [
+            "trap",
+            "set -e",
+            "ERR",
+            "if"
+          ],
+          "expected_collections": [
+            "bash_docs"
+          ],
+          "must_not_contain": [
+            "try",
+            "catch",
+            "try/catch"
+          ],
           "human_rubric": "Hallucination test: bash has no try/catch; should suggest trap or set -e."
         },
         {
@@ -323,7 +530,11 @@
           "query": "I want to write a bash script that runs dnf update and then runs a docker build. How?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["fedora_quick_docs", "bash_docs", "docker_docs"],
+          "expected_collections": [
+            "fedora_quick_docs",
+            "bash_docs",
+            "docker_docs"
+          ],
           "human_rubric": "Answer should combine Fedora (dnf), bash (script), and Docker (build) correctly. Check retrieval used multiple collections."
         }
       ]
@@ -336,32 +547,55 @@
           "id": "grep-basic",
           "query": "How do I search for a string in a file using the command line?",
           "review_type": "auto",
-          "expected_contains": ["grep", "search", "file"],
-          "expected_collections": ["man_pages", "bash_docs"],
+          "expected_contains": [
+            "grep",
+            "search",
+            "file"
+          ],
+          "expected_collections": [
+            "man_pages",
+            "bash_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "man-page-exists",
           "query": "How do I read the manual for the ls command?",
           "review_type": "auto",
-          "expected_contains": ["man", "ls"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "man",
+            "ls"
+          ],
+          "expected_collections": [
+            "man_pages"
+          ],
           "human_rubric": null
         },
         {
           "id": "linux-find-name",
           "query": "How do I find files by name in the current directory and below?",
           "review_type": "auto",
-          "expected_contains": ["find", "name"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "find",
+            "name"
+          ],
+          "expected_collections": [
+            "man_pages"
+          ],
           "human_rubric": null
         },
         {
           "id": "linux-chmod",
           "query": "How do I make a script executable with chmod?",
           "review_type": "auto",
-          "expected_contains": ["chmod", "+x", "executable"],
-          "expected_collections": ["man_pages"],
+          "expected_contains": [
+            "chmod",
+            "+x",
+            "executable"
+          ],
+          "expected_collections": [
+            "man_pages"
+          ],
           "human_rubric": null
         },
         {
@@ -369,32 +603,55 @@
           "query": "How do I kill a process by PID? What signal does kill send by default?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["man_pages"],
+          "expected_collections": [
+            "man_pages"
+          ],
           "human_rubric": "Should mention kill PID and SIGTERM (15) as default. No hallucinated signal names."
         },
         {
           "id": "linux-xargs-basic",
           "query": "How do I run a command on each line of input?",
           "review_type": "auto",
-          "expected_contains": ["xargs", "while", "read"],
-          "expected_collections": ["man_pages", "bash_docs"],
+          "expected_contains": [
+            "xargs",
+            "while",
+            "read"
+          ],
+          "expected_collections": [
+            "man_pages",
+            "bash_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "linux-redirect-stderr",
           "query": "How do I redirect stderr to a file in bash?",
           "review_type": "auto",
-          "expected_contains": ["2>", "stderr", "redirect"],
-          "expected_collections": ["bash_docs", "man_pages"],
+          "expected_contains": [
+            "2>",
+            "stderr",
+            "redirect"
+          ],
+          "expected_collections": [
+            "bash_docs",
+            "man_pages"
+          ],
           "human_rubric": null
         },
         {
           "id": "linux-fake-command",
           "query": "What is the command to list all processes? I think it's ps list.",
           "review_type": "auto",
-          "expected_contains": ["ps", "process"],
-          "expected_collections": ["man_pages"],
-          "must_not_contain": ["ps list"],
+          "expected_contains": [
+            "ps",
+            "process"
+          ],
+          "expected_collections": [
+            "man_pages"
+          ],
+          "must_not_contain": [
+            "ps list"
+          ],
           "human_rubric": "Hallucination test: 'ps list' is wrong; should suggest ps aux or ps -ef."
         },
         {
@@ -415,96 +672,169 @@
           "id": "docker-list-containers",
           "query": "How do I list running Docker containers?",
           "review_type": "auto",
-          "expected_contains": ["docker", "ps", "container"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "ps",
+            "container"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-build-image",
           "query": "How do I build a Docker image from a Dockerfile?",
           "review_type": "auto",
-          "expected_contains": ["docker", "build", "Dockerfile"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "build",
+            "Dockerfile"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-run-basic",
           "query": "How do I run a container from the nginx image?",
           "review_type": "auto",
-          "expected_contains": ["docker", "run", "nginx"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "run",
+            "nginx"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-stop-container",
           "query": "How do I stop a running Docker container?",
           "review_type": "auto",
-          "expected_contains": ["docker", "stop"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "stop"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-remove-container",
           "query": "How do I remove a stopped container?",
           "review_type": "auto",
-          "expected_contains": ["docker", "rm", "remove"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "rm",
+            "remove"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-list-images",
           "query": "How do I list all Docker images on my system?",
           "review_type": "auto",
-          "expected_contains": ["docker", "images", "image"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "images",
+            "image"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-run-port",
           "query": "How do I run a container and map port 8080 on the host to port 80 in the container?",
           "review_type": "auto",
-          "expected_contains": ["docker", "run", "p", "8080", "80", "port"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "run",
+            "p",
+            "8080",
+            "80",
+            "port"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-run-detached",
           "query": "How do I run a container in the background so it keeps running after I close the terminal?",
           "review_type": "auto",
-          "expected_contains": ["docker", "run", "d", "detach"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "run",
+            "d",
+            "detach"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-exec",
           "query": "How do I run a command inside a running container?",
           "review_type": "auto",
-          "expected_contains": ["docker", "exec"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "exec"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-logs",
           "query": "How do I view the logs of a Docker container?",
           "review_type": "auto",
-          "expected_contains": ["docker", "logs"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "logs"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-prune",
           "query": "How do I remove unused Docker images and containers to free disk space?",
           "review_type": "auto",
-          "expected_contains": ["docker", "prune", "system"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "docker",
+            "prune",
+            "system"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
           "id": "docker-compose-up",
           "query": "How do I start all services defined in a docker-compose.yml file?",
           "review_type": "auto",
-          "expected_contains": ["compose", "up", "docker"],
-          "expected_collections": ["docker_docs"],
+          "expected_contains": [
+            "compose",
+            "up",
+            "docker"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": null
         },
         {
@@ -512,16 +842,26 @@
           "query": "What is the difference between a Docker image and a container?",
           "review_type": "human",
           "expected_contains": null,
-          "expected_collections": ["docker_docs"],
+          "expected_collections": [
+            "docker_docs"
+          ],
           "human_rubric": "Answer should be accurate (image = template, container = running instance). Grounded in docs; no hallucination."
         },
         {
           "id": "docker-hallucination-fake-cmd",
           "query": "How do I restart all my containers? I thought the command was docker restart all.",
           "review_type": "auto",
-          "expected_contains": ["restart", "docker", "container"],
-          "expected_collections": ["docker_docs"],
-          "must_not_contain": ["docker restart all"],
+          "expected_contains": [
+            "restart",
+            "docker",
+            "container"
+          ],
+          "expected_collections": [
+            "docker_docs"
+          ],
+          "must_not_contain": [
+            "docker restart all"
+          ],
           "human_rubric": "Hallucination test: 'docker restart all' is not valid; should suggest looping over containers or docker compose restart."
         }
       ]
