@@ -63,8 +63,28 @@ except ValueError:
 QDRANT_URL = "http://qdrant:6333"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 COLLECTIONS = ["fedora_quick_docs", "bash_docs", "man_pages", "docker_docs", "git_docs"]
-TOP_K = 10
-MIN_SCORE = 0.18  # Include borderline-relevant chunks; model can ignore noise
+# Per-collection candidate fetch (then re-rank globally)
+try:
+    PER_COLLECTION_K = int(os.environ.get("RAG_PER_COLLECTION_K", "4"))
+except ValueError:
+    PER_COLLECTION_K = 4
+# Final chunks fed to the model (best scores across all collections)
+try:
+    CONTEXT_TOP_N = int(os.environ.get("RAG_CONTEXT_TOP_N", "8"))
+except ValueError:
+    CONTEXT_TOP_N = 8
+# Cosine floor — relevant hits in our smoke tests were typically >= ~0.45
+try:
+    MIN_SCORE = float(os.environ.get("RAG_MIN_SCORE", "0.32"))
+except ValueError:
+    MIN_SCORE = 0.32
+# Truncate each chunk in the prompt so one Docker page cannot flood context
+try:
+    MAX_CHUNK_CHARS = int(os.environ.get("RAG_MAX_CHUNK_CHARS", "1600"))
+except ValueError:
+    MAX_CHUNK_CHARS = 1600
+# Backward-compatible alias used in older comments/docs
+TOP_K = PER_COLLECTION_K
 
 qdrant = QdrantClient(url=QDRANT_URL)
 embedder = SentenceTransformer(EMBED_MODEL)
@@ -184,9 +204,44 @@ def health():
     return {"status": "ok", "model": MODEL, "num_ctx": NUM_CTX}
 
 
-def _collect_chunks(q_vec, debug=False):
-    """Search existing collections and return (chunks, any_searched, debug_info)."""
-    chunks = []
+def _format_hit_text(payload: dict) -> str:
+    """Format a Qdrant payload for the LLM context window."""
+    text = (payload.get("text") or "").strip()
+    if len(text) > MAX_CHUNK_CHARS:
+        text = text[: MAX_CHUNK_CHARS - 1].rsplit(" ", 1)[0] + "…"
+    if payload.get("command"):
+        return (
+            f"Command: {payload['command']}\n"
+            f"Description: {payload.get('description', '')}\n\n"
+            f"{text}"
+        )
+    if payload.get("source"):
+        return f"Source: {payload['source']}\n\n{text}"
+    return text
+
+
+def _command_boost(query: str, payload: dict) -> float:
+    """Small score bump when the query names the command exactly."""
+    cmd = (payload.get("command") or "").strip().lower()
+    if not cmd:
+        return 0.0
+    q = (query or "").lower()
+    # Prefer whole-token match: "docker run" / "ls" / "git reset"
+    if re.search(rf"(?<!\w){re.escape(cmd)}(?!\w)", q):
+        return 0.08
+    # Also match bare last token (e.g. query "run container" vs "docker container run")
+    last = cmd.split()[-1]
+    if len(last) >= 2 and re.search(rf"(?<!\w){re.escape(last)}(?!\w)", q):
+        return 0.03
+    return 0.0
+
+
+def _collect_chunks(q_vec, debug=False, query: str = ""):
+    """
+    Search all collections, filter by MIN_SCORE, apply light command boost,
+    then keep the global top CONTEXT_TOP_N chunks by score.
+    """
+    candidates = []
     any_searched = False
     debug_info = []
     for collection in COLLECTIONS:
@@ -199,38 +254,64 @@ def _collect_chunks(q_vec, debug=False):
             response = qdrant.query_points(
                 collection_name=collection,
                 query=q_vec,
-                limit=TOP_K,
+                limit=PER_COLLECTION_K,
             )
-            # query_points returns QueryResponse; results are in .points (list of scored records)
             hits = getattr(response, "points", None) or []
-            scores = []
-            added = 0
+            raw_scores = []
+            kept = 0
             for h in hits:
-                if h.score is not None:
-                    scores.append(h.score)
-                if h.score is not None and h.score < MIN_SCORE:
+                score = float(h.score) if h.score is not None else 0.0
+                raw_scores.append(score)
+                if score < MIN_SCORE:
                     continue
                 p = h.payload or {}
-                text = p.get("text", "")
-                if not text:
+                if not (p.get("text") or "").strip():
                     continue
-                added += 1
-                if p.get("command"):
-                    chunks.append(f"Command: {p['command']}\nDescription: {p.get('description', '')}\n\n{text}")
-                elif p.get("source"):
-                    chunks.append(f"Source: {p['source']}\n\n{text}")
-                else:
-                    chunks.append(text)
+                boosted = score + _command_boost(query, p)
+                candidates.append(
+                    {
+                        "collection": collection,
+                        "score": score,
+                        "boosted": boosted,
+                        "text": _format_hit_text(p),
+                        "command": p.get("command"),
+                        "source": p.get("source"),
+                    }
+                )
+                kept += 1
             if debug:
-                debug_info.append({
-                    "collection": collection,
-                    "hits": len(hits),
-                    "used": added,
-                    "scores": sorted(scores, reverse=True)[:5] if scores else [],
-                })
+                debug_info.append(
+                    {
+                        "collection": collection,
+                        "hits": len(hits),
+                        "used": kept,
+                        "scores": sorted(raw_scores, reverse=True)[:5],
+                    }
+                )
         except Exception as e:
             if debug:
-                debug_info.append({"collection": collection, "status": "error", "error": str(e)})
+                debug_info.append(
+                    {"collection": collection, "status": "error", "error": str(e)}
+                )
+
+    candidates.sort(key=lambda c: c["boosted"], reverse=True)
+    top = candidates[:CONTEXT_TOP_N]
+    chunks = [c["text"] for c in top]
+    if debug:
+        debug_info.append(
+            {
+                "global_top": [
+                    {
+                        "collection": c["collection"],
+                        "score": round(c["score"], 4),
+                        "boosted": round(c["boosted"], 4),
+                        "command": c.get("command"),
+                        "source": str(c.get("source") or "")[:80],
+                    }
+                    for c in top
+                ]
+            }
+        )
     return chunks, any_searched, debug_info
 
 
@@ -249,9 +330,11 @@ def ask(query: dict, debug: bool = False, base_model: bool = False):
 def _retrieval_context(prompt: str, debug: bool = False):
     """Run the RAG pipeline for the agent's initial system prompt."""
     q_vec = embedder.encode(prompt).tolist()
-    chunks, any_searched, debug_info = _collect_chunks(q_vec, debug=debug)
+    chunks, any_searched, debug_info = _collect_chunks(
+        q_vec, debug=debug, query=prompt
+    )
     if chunks:
-        context = "\n\n".join(chunks[:15])
+        context = "\n\n".join(chunks)
     elif any_searched:
         context = "No relevant documentation found for this question."
     else:
@@ -508,10 +591,12 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
 
     else:
         q_vec = embedder.encode(prompt).tolist()
-        chunks, any_collection_searched, debug_info = _collect_chunks(q_vec, debug=debug)
+        chunks, any_collection_searched, debug_info = _collect_chunks(
+            q_vec, debug=debug, query=prompt
+        )
 
         if chunks:
-            context = "\n\n".join(chunks[:15])
+            context = "\n\n".join(chunks)
         elif any_collection_searched:
             context = "No relevant documentation found for this question."
         else:
