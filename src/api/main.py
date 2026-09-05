@@ -117,14 +117,10 @@ class AgentRunRequest(BaseModel):
     # result", refs to prior commands), which a single compressed summary
     # cannot do well on a small model.
     prior_turns: list[AgentPriorTurn] | None = None
-    # RAG retrieval is OFF by default for the agent loop. The whole point
-    # of agent mode is that the model can probe the live system with
-    # tools — a `find $HOME ...` is more reliable than a stale doc chunk
-    # about "the find command". Stuffing both into a small model dilutes
-    # attention and produces hallucinated paths and echo answers. Opt in
-    # via `use_retrieval: true` for explanatory questions where docs
-    # really do help (e.g. "explain SELinux contexts").
-    use_retrieval: bool = False
+    # RAG retrieval: None = auto (doc/how-to → on; live host state → off).
+    # Explicit true/false still overrides. Auto keeps the tool loop sharp
+    # for "where is my X?" while grounding "how do I …?" in docs.
+    use_retrieval: bool | None = None
 
 
 class AgentToolResult(BaseModel):
@@ -451,10 +447,20 @@ def agent_run(payload: AgentRunRequest):
 
     documentation = ""
     retrieval_meta = None
-    if not payload.base_model and payload.use_retrieval:
+    use_rag = payload.use_retrieval
+    if use_rag is None:
+        use_rag = agent_mod.should_use_retrieval(query)
+    if not payload.base_model and use_rag:
         documentation, used, debug_info = _retrieval_context(query, debug=payload.debug)
         if payload.debug:
-            retrieval_meta = {"chunks_used": used, "collections": debug_info}
+            retrieval_meta = {
+                "chunks_used": used,
+                "collections": debug_info,
+                "use_retrieval": use_rag,
+                "use_retrieval_mode": (
+                    "explicit" if payload.use_retrieval is not None else "auto"
+                ),
+            }
 
     session = agent_sessions.get(session_id)
     if not session:
@@ -491,8 +497,17 @@ def agent_run(payload: AgentRunRequest):
     )
     if payload.debug:
         out["context"] = documentation if not payload.base_model else "(base model only)"
+        out["use_retrieval"] = bool(use_rag) and not payload.base_model
         if retrieval_meta is not None:
             out["retrieval"] = retrieval_meta
+        elif not payload.base_model:
+            out["retrieval"] = {
+                "chunks_used": 0,
+                "use_retrieval": False,
+                "use_retrieval_mode": (
+                    "explicit" if payload.use_retrieval is not None else "auto"
+                ),
+            }
     return out
 
 
@@ -606,7 +621,15 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
             )
 
         full_prompt = (
-            "You are Fedora Linux assistant. You help users related to fedora linux usage, docker usage, git usage, bash usage. Use the following documentation when relevant. \n\n"
+            "You are a Fedora Linux assistant for Fedora, bash, git, and docker.\n"
+            "Use the Documentation below as your PRIMARY source.\n"
+            "Rules:\n"
+            "- If the docs answer the question, ground your reply in them and prefer "
+            "their exact commands/flags.\n"
+            "- If the docs are incomplete or irrelevant, say what is missing rather "
+            "than inventing flags, paths, or package names.\n"
+            "- Never invent dnf/apt/docker/git/bash options that are not in the docs.\n"
+            "- Be concise; include a short ```bash``` example when giving commands.\n\n"
             "Documentation:\n" + context + "\n\n"
             "User question: " + prompt
         )

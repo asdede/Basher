@@ -185,6 +185,13 @@ preference.
     plain prose explaining the result, then a fenced ```bash``` block of
     the exact commands the user should run themselves. Do NOT echo the
     question back. No filler. No apologies. No schema fragments.
+12. **When Documentation is attached below**, treat it as the primary
+    source for how-to / syntax / flag / procedure answers. Prefer exact
+    commands and flags from those docs over memory. If docs and memory
+    conflict, trust the docs. Still use tools for *this machine's* live
+    state (files, ports, installed packages, running services). Never
+    invent flags, paths, or package names that are not in the docs or
+    a tool result.
 
 # Examples (study the tool choices)
 
@@ -1071,6 +1078,57 @@ def _ollama_chat_with_fallback(
 
 
 # ---------------------------------------------------------------------------
+# RAG routing — when the agent should pull documentation
+# ---------------------------------------------------------------------------
+
+# Live host state → tools only (docs would dilute a small model).
+_TOOL_FIRST_RE = re.compile(
+    r"(?is)\b("
+    r"where\s+(is|are|can\s+i\s+find)|find\s+(my|the)\s+(file|folder|dir|directory)|"
+    r"lost\s+my|what('s|\s+is)\s+(on|using)\s+(my\s+)?port|"
+    r"(is|are)\s+.{0,60}(running|installed|active|enabled)\b|"
+    r"list\s+(my|the)\s+(files|containers|processes|packages|services)|"
+    r"disk\s+(space|usage)|free\s+space|my\s+(home|repo|branch|hostname)|"
+    r"on\s+(this|my)\s+(machine|system|host|computer)|"
+    r"what\s+process|which\s+(file|port|process)|"
+    r"show\s+me\s+(my|what)|do\s+i\s+have\s+\w+\s+installed|"
+    r"what\s+kernel\s+am\s+i|am\s+i\s+root"
+    r")\b"
+)
+
+# How-to / explain / syntax → retrieve docs.
+_DOC_FIRST_RE = re.compile(
+    r"(?is)\b("
+    r"how\s+(do|to|can|should|would)|what\s+(is|are|does|do)|explain|"
+    r"difference\s+between|versus|\bvs\.?\b|syntax|meaning\s+of|"
+    r"what\s+(flag|option|parameter|switch)|best\s+practice|"
+    r"why\s+(does|do|is|are|should)|write\s+a\s+(bash\s+|shell\s+)?script|"
+    r"example\s+of|document(ation)?\s+(for|about)|"
+    r"selinux|dnf-automatic|systemd\s+unit|dockerfile|"
+    r"quote|quoting|array|subshell|pipeline|redirection|"
+    r"set\s+-u|trap\s+|chmod|chown"
+    r")\b"
+)
+
+
+def should_use_retrieval(query: str) -> bool:
+    """
+    Decide whether agent mode should inject RAG documentation.
+
+    Tool-first for live machine state; docs for how-to / explain / syntax.
+    Conservative default: False when ambiguous (keeps the tool loop sharp).
+    """
+    q = (query or "").strip()
+    if not q:
+        return False
+    if _TOOL_FIRST_RE.search(q):
+        return False
+    if _DOC_FIRST_RE.search(q):
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -1139,7 +1197,15 @@ def build_initial_messages(
     if not base_model and documentation:
         sys_content += (
             "\n\n# Documentation (retrieved for this question)\n"
-            "Use only when relevant. Do not fabricate paths or flags.\n\n"
+            "GROUNDING RULES:\n"
+            "- Prefer facts, flags, and procedures from these docs over memory.\n"
+            "- When answering how-to questions, use the exact commands/flags "
+            "shown below when they fit.\n"
+            "- If docs and memory conflict, trust the docs for Fedora / bash / "
+            "git / docker.\n"
+            "- Do NOT invent flags, paths, or package names absent from the "
+            "docs or a later tool result.\n"
+            "- Docs do not know THIS host — still use tools for live state.\n\n"
             + documentation
         )
     return [
@@ -1667,6 +1733,7 @@ __all__ = [
     "OllamaError",
     "classify_command",
     "is_banned",
+    "should_use_retrieval",
     "build_initial_messages",
     "format_tool_result_message",
     "run_agent_turn",
