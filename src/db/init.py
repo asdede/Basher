@@ -16,10 +16,17 @@ DOCPAGES_CONFIG = os.environ.get("DOCPAGES_CONFIG", "config/docPages.json")
 SCRAPE_DELAY_SEC = float(os.environ.get("CRAWL_DELAY_SEC", "1.5"))
 
 
-def _ensure_collection(qdrant, database):
+def _ensure_collection(qdrant, database, recreate=False):
+    exists = False
     try:
         qdrant.get_collection(database)
+        exists = True
     except Exception:
+        exists = False
+    if exists and recreate:
+        qdrant.delete_collection(database)
+        exists = False
+    if not exists:
         qdrant.create_collection(
             collection_name=database,
             vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
@@ -29,17 +36,17 @@ def _ensure_collection(qdrant, database):
 def init_db_from_urls(database, url_list, qdrant):
     """Scrape the given URLs (one page each), embed, and upsert into the collection."""
     print(f"[{database}] Scraping {len(url_list)} URL(s) (delay {SCRAPE_DELAY_SEC}s)...")
-    embeddings, chunks = get_embeddings_and_chunks_from_urls(
+    embeddings, payloads = get_embeddings_and_chunks_from_urls(
         url_list,
         delay_sec=SCRAPE_DELAY_SEC,
     )
-    if not chunks:
+    if not payloads:
         print(f"[{database}] No chunks from crawl. Skip.")
         return
-    _ensure_collection(qdrant, database)
+    _ensure_collection(qdrant, database, recreate=True)
     points = [
-        PointStruct(id=i, vector=vec.tolist(), payload={"text": chunk})
-        for i, (vec, chunk) in enumerate(zip(embeddings, chunks))
+        PointStruct(id=i, vector=vec.tolist(), payload=payload)
+        for i, (vec, payload) in enumerate(zip(embeddings, payloads))
     ]
     qdrant.upsert(collection_name=database, points=points)
     print(f"[{database}] Upserted {len(points)} points.")
@@ -55,7 +62,7 @@ def init_db_from_man_pages(database, index_url, qdrant):
     if not payloads:
         print(f"[{database}] No man page entries. Skip.")
         return
-    _ensure_collection(qdrant, database)
+    _ensure_collection(qdrant, database, recreate=True)
     points = [
         PointStruct(id=i, vector=vec.tolist(), payload=payload)
         for i, (vec, payload) in enumerate(zip(embeddings, payloads))
@@ -74,7 +81,7 @@ def init_db_from_docker_cli(database, index_url, qdrant):
     if not payloads:
         print(f"[{database}] No Docker CLI entries. Skip.")
         return
-    _ensure_collection(qdrant, database)
+    _ensure_collection(qdrant, database, recreate=True)
     points = [
         PointStruct(id=i, vector=vec.tolist(), payload=payload)
         for i, (vec, payload) in enumerate(zip(embeddings, payloads))
@@ -94,7 +101,7 @@ def init_db_from_html_folder(database, path, qdrant):
     if not payloads:
         print(f"[{database}] No .html or .adoc files found in '{resolved}'. Skip.")
         return
-    _ensure_collection(qdrant, database)
+    _ensure_collection(qdrant, database, recreate=True)
     points = [
         PointStruct(id=i, vector=vec.tolist(), payload=payload)
         for i, (vec, payload) in enumerate(zip(embeddings, payloads))
@@ -109,7 +116,7 @@ def init_db_from_folder(database, docs_folder, qdrant):
     if not chunks:
         print(f"[{database}] No chunks from '{docs_folder}'. Skip.")
         return
-    _ensure_collection(qdrant, database)
+    _ensure_collection(qdrant, database, recreate=True)
     points = [
         PointStruct(id=i, vector=vec.tolist(), payload={"text": chunk})
         for i, (vec, chunk) in enumerate(zip(embeddings, chunks))
@@ -118,8 +125,9 @@ def init_db_from_folder(database, docs_folder, qdrant):
     print(f"[{database}] Upserted {len(points)} points.")
 
 
-def main(databases=None, docs_folder="docs"):
+def main(databases=None, docs_folder="docs", only=None):
     qdrant = QdrantClient(url=QDRANT_URL)
+    only_set = set(only) if only else None
     # docPages.json: { "collection_name": ["url1", "url2", ...] } — scrape only those URLs
     if os.path.isfile(DOCPAGES_CONFIG):
         config_abspath = os.path.abspath(DOCPAGES_CONFIG)
@@ -128,6 +136,8 @@ def main(databases=None, docs_folder="docs"):
         with open(DOCPAGES_CONFIG, "r", encoding="utf-8") as f:
             doc_pages = json.load(f)
         for name, val in doc_pages.items():
+            if only_set is not None and name not in only_set:
+                continue
             # Object: { "type": "html_folder", "path": "docs/quick-docs" } — path relative to project root
             if isinstance(val, dict):
                 if val.get("type") == "html_folder" and val.get("path"):
@@ -157,8 +167,20 @@ def main(databases=None, docs_folder="docs"):
     if databases is None:
         databases = ["fedora_docs", "bash_docs"]
     for database in databases:
+        if only_set is not None and database not in only_set:
+            continue
         init_db_from_folder(database, docs_folder, qdrant)
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Ingest documentation into Qdrant.")
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        metavar="COLLECTION",
+        help="Only ingest these collection names from docPages.json",
+    )
+    args = parser.parse_args()
+    main(only=args.only)

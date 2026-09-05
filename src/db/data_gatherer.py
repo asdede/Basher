@@ -194,22 +194,27 @@ def get_embeddings_and_chunks(folder="docs"):
 
 def get_embeddings_and_chunks_from_urls(url_list, delay_sec=1.5):
     """
-    Scrape exactly the given URLs (one page each), chunk, embed, return (embeddings, chunks).
+    Scrape exactly the given URLs (one page each), chunk, embed.
+    Returns (embeddings, payloads) with payloads {"text", "source"} (source = URL).
     """
     if not url_list:
         return [], []
     urls = list(url_list)
-    texts, _ = scrape_urls_only(urls, delay_sec=delay_sec)
+    texts, fetched = scrape_urls_only(urls, delay_sec=delay_sec)
     if not texts:
         return [], []
     all_chunks = []
-    for text in texts:
-        all_chunks.extend(chunk_text_auto(text))
+    sources = []
+    for text, src in zip(texts, fetched):
+        for chunk in chunk_text_auto(text):
+            all_chunks.append(chunk)
+            sources.append(src)
     if not all_chunks:
         return [], []
     model = SentenceTransformer(MODEL_NAME)
     embeddings = model.encode(all_chunks)
-    return embeddings, all_chunks
+    payloads = [{"text": c, "source": s} for c, s in zip(all_chunks, sources)]
+    return embeddings, payloads
 
 
 # Max words per command doc when building embedding text (avoids huge vectors)
@@ -304,24 +309,65 @@ def _html_file_to_text(filepath):
     return " ".join(soup.get_text(separator=" ").split())
 
 
+def _strip_adoc_inline(text):
+    """Light AsciiDoc inline cleanup for embedding text."""
+    text = re.sub(r"link:[^\[]+\[([^\]]*)\]", r"\1", text)
+    text = re.sub(r"xref:[^\[]+\[([^\]]*)\]", r"\1", text)
+    text = re.sub(r"https?://\S+\[([^\]]*)\]", r"\1", text)
+    text = text.replace("`+", "").replace("+`", "")
+    text = text.replace("`", "")
+    return text
+
+
 def _adoc_file_to_text(filepath):
-    """Read an AsciiDoc file and return plain text (markup stripped)."""
+    """
+    Read an AsciiDoc file and return plain text for embedding.
+    Keeps list items and procedure steps (previously dropped when starting with * / .).
+    Strips attributes, block markers, and light inline markup.
+    """
     try:
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
     except Exception:
         return ""
     lines = []
+    in_fence = False
+    fence_marks = {"----", "....", "****", "===="}
     for line in content.splitlines():
-        s = line.strip()
-        if not s or s.startswith(":") or s == "---" or s == "===" or s == "'''":
+        raw = line.rstrip()
+        s = raw.strip()
+        if not s:
             continue
-        if s.startswith("=") and len(s) > 1 and s[1] in "= ":
-            lines.append(s.lstrip("=#").strip())
+        # Toggle fenced blocks (source/listing); keep inner lines
+        if s[:4] in fence_marks or s in fence_marks:
+            in_fence = not in_fence
             continue
-        if s.startswith("*") or s.startswith(".") or s.startswith("["):
+        if in_fence:
+            lines.append(s)
             continue
-        lines.append(s)
+        # Document/attribute lines
+        if s.startswith(":") and ":" in s[1:]:
+            continue
+        if s.startswith("include::"):
+            continue
+        # Block attribute lines like [source,console] / [abstract]
+        if s.startswith("[") and s.endswith("]"):
+            continue
+        if s in ("'''", "---", "***"):
+            continue
+        # Headings: = Title / == Section
+        if s.startswith("="):
+            title = s.lstrip("= ").strip()
+            if title:
+                lines.append(_strip_adoc_inline(title))
+            continue
+        # Unordered / ordered list items (keep the content)
+        if re.match(r"^[\*\.]+\s+", s):
+            item = re.sub(r"^[\*\.]+\s+", "", s)
+            if item:
+                lines.append(_strip_adoc_inline(item))
+            continue
+        lines.append(_strip_adoc_inline(s))
     return " ".join(" ".join(lines).split())
 
 
@@ -336,29 +382,37 @@ def get_embeddings_and_payloads_from_html_folder(folder):
 
     chunks = []
     sources = []
-    for root, _dirs, files in os.walk(folder):
-        for f in files:
-            if f.lower().endswith(".html"):
-                path = os.path.join(root, f)
-                text = _html_file_to_text(path)
-                if not text:
-                    continue
-                rel = os.path.relpath(path, folder)
-                for chunk in chunk_text_auto(text):
-                    chunks.append(chunk)
-                    sources.append(rel)
-    if not chunks:
-        for root, _dirs, files in os.walk(folder):
+
+    def _walk_ext(ext):
+        for root, dirs, files in os.walk(folder):
+            # Skip Antora partials / deleted drafts
+            dirs[:] = [
+                d
+                for d in dirs
+                if d not in ("_partials", "partials", "partialsdelete")
+                and not d.startswith(".")
+            ]
             for f in files:
-                if f.lower().endswith(".adoc"):
-                    path = os.path.join(root, f)
-                    text = _adoc_file_to_text(path)
-                    if not text:
-                        continue
-                    rel = os.path.relpath(path, folder)
-                    for chunk in chunk_text_auto(text):
-                        chunks.append(chunk)
-                        sources.append(rel)
+                if f.lower().endswith(ext):
+                    yield os.path.join(root, f)
+
+    for path in _walk_ext(".html"):
+        text = _html_file_to_text(path)
+        if not text:
+            continue
+        rel = os.path.relpath(path, folder)
+        for chunk in chunk_text_auto(text):
+            chunks.append(chunk)
+            sources.append(rel)
+    if not chunks:
+        for path in _walk_ext(".adoc"):
+            text = _adoc_file_to_text(path)
+            if not text:
+                continue
+            rel = os.path.relpath(path, folder)
+            for chunk in chunk_text_auto(text):
+                chunks.append(chunk)
+                sources.append(rel)
 
     if not chunks:
         return [], []

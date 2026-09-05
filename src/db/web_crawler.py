@@ -25,23 +25,74 @@ def _session():
     return s
 
 
-def scrape_page(url, session=None, timeout=15):
-    """Fetch one URL and return its main text (no link following)."""
+def _extract_main_text(soup, url=""):
+    """
+    Prefer main documentation content over site chrome (nav/footer).
+    Site-specific selectors first, then generic <main>/<article>, else body.
+    """
+    host = urlparse(url).netloc.lower() if url else ""
+
+    # Drop non-content early
+    for s in soup(["script", "style", "noscript"]):
+        s.extract()
+
+    root = None
+    if "git-scm.com" in host:
+        root = soup.select_one("#main") or soup.select_one("#content")
+    elif "man7.org" in host:
+        # Man pages are a sequence of <pre> blocks after the title
+        pres = soup.find_all("pre")
+        if pres:
+            return " ".join(" ".join(p.get_text(separator=" ").split()) for p in pres)
+        for sel in (".nav-bar", ".page-top", "header", "nav", "footer"):
+            for el in soup.select(sel):
+                el.extract()
+    elif "linuxcommand.org" in host:
+        root = soup.find("pre") or soup.find("div", id="content")
+    elif "docs.docker.com" in host:
+        root = soup.find("article", class_=lambda c: c and "prose" in (c or ""))
+        if not root:
+            root = soup.find(attrs={"data-pagefind-body": True})
+
+    if root is None:
+        root = (
+            soup.find("main")
+            or soup.find("article")
+            or soup.find(attrs={"role": "main"})
+            or soup.body
+            or soup
+        )
+        # Strip common chrome when falling back to body
+        if root is soup.body or root is soup:
+            for sel in ("nav", "header", "footer", ".nav-bar", ".page-top", "#header", "#footer"):
+                for el in (root.select(sel) if hasattr(root, "select") else []):
+                    el.extract()
+
+    text = root.get_text(separator=" ") if root else soup.get_text(separator=" ")
+    return " ".join(text.split())
+
+
+def scrape_page(url, session=None, timeout=15, retries=3):
+    """Fetch one URL and return its main text (no link following). Retries on 403/5xx."""
     session = session or _session()
-    try:
-        # Some sites (e.g. gnu.org) are less strict when Referer matches origin
-        parsed = urlparse(url)
-        origin = f"{parsed.scheme}://{parsed.netloc}/"
-        r = session.get(url, timeout=timeout, headers={"Referer": origin})
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        for s in soup(["script", "style"]):
-            s.extract()
-        text = soup.get_text(separator=" ")
-        return " ".join(text.split())
-    except Exception as e:
-        print(f"Failed {url}: {e}")
-        return ""
+    parsed = urlparse(url)
+    origin = f"{parsed.scheme}://{parsed.netloc}/"
+    last_err = None
+    for attempt in range(max(1, retries)):
+        try:
+            r = session.get(url, timeout=timeout, headers={"Referer": origin})
+            if r.status_code in (403, 429, 500, 502, 503):
+                last_err = f"{r.status_code} for url: {url}"
+                time.sleep(1.2 * (attempt + 1))
+                continue
+            r.raise_for_status()
+            soup = BeautifulSoup(r.text, "html.parser")
+            return _extract_main_text(soup, url=url)
+        except Exception as e:
+            last_err = e
+            time.sleep(0.8 * (attempt + 1))
+    print(f"Failed {url}: {last_err}")
+    return ""
 
 
 def scrape_urls_only(url_list, delay_sec=DEFAULT_DELAY_SEC):
