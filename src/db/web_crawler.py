@@ -40,11 +40,35 @@ def _extract_main_text(soup, url=""):
     root = None
     if "git-scm.com" in host:
         root = soup.select_one("#main") or soup.select_one("#content")
+    elif "mywiki.wooledge.org" in host:
+        for sel in ("#header", "#sidebar", "#footer", "#locationline", "#headerline", "#credits"):
+            for el in soup.select(sel):
+                el.extract()
+        root = soup.select_one("#content") or soup.select_one("#page")
+    elif "tldp.org" in host:
+        for sel in (".NAVHEADER", ".NAVFOOTER"):
+            for el in soup.select(sel):
+                el.extract()
+        root = (
+            soup.find("div", class_="CHAPTER")
+            or soup.find("div", class_="SECT1")
+            or soup.find("div", class_="SECT2")
+            or soup.body
+        )
     elif "man7.org" in host:
         # Man pages are a sequence of <pre> blocks after the title
         pres = soup.find_all("pre")
         if pres:
-            return " ".join(" ".join(p.get_text(separator=" ").split()) for p in pres)
+            blocks = []
+            for p in pres:
+                block = "\n".join(
+                    ln.strip()
+                    for ln in p.get_text(separator="\n").splitlines()
+                    if ln.strip()
+                )
+                if block:
+                    blocks.append(block)
+            return "\n\n".join(blocks)
         for sel in (".nav-bar", ".page-top", "header", "nav", "footer"):
             for el in soup.select(sel):
                 el.extract()
