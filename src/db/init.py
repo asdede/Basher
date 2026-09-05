@@ -14,6 +14,7 @@ from .data_gatherer import (
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 DOCPAGES_CONFIG = os.environ.get("DOCPAGES_CONFIG", "config/docPages.json")
 SCRAPE_DELAY_SEC = float(os.environ.get("CRAWL_DELAY_SEC", "1.5"))
+UPSERT_BATCH_SIZE = int(os.environ.get("QDRANT_UPSERT_BATCH", "64"))
 
 
 def _ensure_collection(qdrant, database, recreate=False):
@@ -33,6 +34,17 @@ def _ensure_collection(qdrant, database, recreate=False):
         )
 
 
+def _upsert_points(qdrant, database, points):
+    """Upsert in batches to stay under Qdrant's JSON body size limit."""
+    total = len(points)
+    batch = max(1, UPSERT_BATCH_SIZE)
+    for start in range(0, total, batch):
+        chunk = points[start : start + batch]
+        qdrant.upsert(collection_name=database, points=chunk)
+        if total > batch:
+            print(f"[{database}] Upserted {min(start + batch, total)}/{total}...")
+
+
 def init_db_from_urls(database, url_list, qdrant):
     """Scrape the given URLs (one page each), embed, and upsert into the collection."""
     print(f"[{database}] Scraping {len(url_list)} URL(s) (delay {SCRAPE_DELAY_SEC}s)...")
@@ -48,7 +60,7 @@ def init_db_from_urls(database, url_list, qdrant):
         PointStruct(id=i, vector=vec.tolist(), payload=payload)
         for i, (vec, payload) in enumerate(zip(embeddings, payloads))
     ]
-    qdrant.upsert(collection_name=database, points=points)
+    _upsert_points(qdrant, database, points)
     print(f"[{database}] Upserted {len(points)} points.")
 
 
@@ -67,7 +79,7 @@ def init_db_from_man_pages(database, index_url, qdrant):
         PointStruct(id=i, vector=vec.tolist(), payload=payload)
         for i, (vec, payload) in enumerate(zip(embeddings, payloads))
     ]
-    qdrant.upsert(collection_name=database, points=points)
+    _upsert_points(qdrant, database, points)
     print(f"[{database}] Upserted {len(points)} command entries.")
 
 
@@ -86,7 +98,7 @@ def init_db_from_docker_cli(database, index_url, qdrant):
         PointStruct(id=i, vector=vec.tolist(), payload=payload)
         for i, (vec, payload) in enumerate(zip(embeddings, payloads))
     ]
-    qdrant.upsert(collection_name=database, points=points)
+    _upsert_points(qdrant, database, points)
     print(f"[{database}] Upserted {len(points)} command entries.")
 
 
@@ -106,7 +118,7 @@ def init_db_from_html_folder(database, path, qdrant):
         PointStruct(id=i, vector=vec.tolist(), payload=payload)
         for i, (vec, payload) in enumerate(zip(embeddings, payloads))
     ]
-    qdrant.upsert(collection_name=database, points=points)
+    _upsert_points(qdrant, database, points)
     print(f"[{database}] Upserted {len(points)} chunks.")
 
 
@@ -121,7 +133,7 @@ def init_db_from_folder(database, docs_folder, qdrant):
         PointStruct(id=i, vector=vec.tolist(), payload={"text": chunk})
         for i, (vec, chunk) in enumerate(zip(embeddings, chunks))
     ]
-    qdrant.upsert(collection_name=database, points=points)
+    _upsert_points(qdrant, database, points)
     print(f"[{database}] Upserted {len(points)} points.")
 
 

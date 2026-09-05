@@ -23,10 +23,14 @@ CHUNK_STRATEGY = os.environ.get("CHUNK_STRATEGY", "fixed").strip().lower()
 if CHUNK_STRATEGY not in ("fixed", "semantic", "agentic"):
     CHUNK_STRATEGY = "fixed"
 
+# Fixed chunking: smaller windows + overlap recover mid-topic cuts
+CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", "350"))
+CHUNK_OVERLAP = int(os.environ.get("CHUNK_OVERLAP", "60"))
+
 # Semantic chunking: merge segments while similarity >= threshold
 SEMANTIC_SIMILARITY_THRESHOLD = float(os.environ.get("SEMANTIC_CHUNK_SIMILARITY", "0.5"))
 SEMANTIC_MIN_WORDS = int(os.environ.get("SEMANTIC_CHUNK_MIN_WORDS", "80"))
-SEMANTIC_MAX_WORDS = int(os.environ.get("SEMANTIC_CHUNK_MAX_WORDS", "500"))
+SEMANTIC_MAX_WORDS = int(os.environ.get("SEMANTIC_CHUNK_MAX_WORDS", str(CHUNK_SIZE)))
 
 # Agentic chunking: Ollama endpoint (used during ingest)
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
@@ -43,13 +47,77 @@ def _get_embedder():
     return _embedder_cache
 
 
-def chunk_text(text, chunk_size=500):
-    """Fixed-size chunking by word count (original behavior)."""
-    words = text.split()
+def chunk_text(text, chunk_size=None, overlap=None):
+    """
+    Fixed-size chunking by word count with overlap.
+    Prefer section-aware splitting first via chunk_text_sectioned / chunk_text_auto.
+    """
+    size = CHUNK_SIZE if chunk_size is None else chunk_size
+    ov = CHUNK_OVERLAP if overlap is None else overlap
+    words = (text or "").split()
+    if not words:
+        return []
+    if len(words) <= size:
+        return [" ".join(words)]
+    step = max(1, size - max(0, ov))
     chunks = []
-    for i in range(0, len(words), chunk_size):
-        chunks.append(" ".join(words[i : i + chunk_size]))
+    i = 0
+    while i < len(words):
+        piece = words[i : i + size]
+        if not piece:
+            break
+        chunks.append(" ".join(piece))
+        if i + size >= len(words):
+            break
+        i += step
     return chunks
+
+
+_SECTION_HEADER_RE = re.compile(
+    r"(?=(?:^|\n)(?:NAME|SYNOPSIS|DESCRIPTION|OPTIONS|EXAMPLES|SEE ALSO|FILES|ENVIRONMENT|"
+    r"EXIT STATUS|BUGS|AUTHOR|COPYRIGHT|CONFIGURATION|USAGE)\b)",
+    re.IGNORECASE,
+)
+
+
+def _split_sections(text):
+    """Split documentation into sections when real structure exists; else one block."""
+    text = (text or "").strip()
+    if not text:
+        return []
+    # Man-page style headers only when the doc looks like a man page
+    head = text[:800].upper()
+    if "NAME" in head and "SYNOPSIS" in head:
+        parts = [p.strip() for p in _SECTION_HEADER_RE.split(text) if p and p.strip()]
+        if len(parts) > 1:
+            return parts
+    # Paragraph splits (blank lines). Ignore if "paragraphs" are tiny line fragments.
+    parts = [p.strip() for p in re.split(r"\n\s*\n+", text) if p.strip()]
+    if len(parts) <= 1:
+        return [text]
+    avg_words = sum(len(p.split()) for p in parts) / len(parts)
+    if avg_words < 40:
+        # Likely over-split line-per-paragraph noise — treat as one document
+        return [text]
+    return parts
+
+
+def chunk_text_sectioned(text, chunk_size=None, overlap=None):
+    """
+    Section-aware chunking: split on man/doc headers or paragraphs, then
+    apply overlapping fixed windows only to oversized sections.
+    """
+    size = CHUNK_SIZE if chunk_size is None else chunk_size
+    ov = CHUNK_OVERLAP if overlap is None else overlap
+    sections = _split_sections(text)
+    chunks = []
+    for section in sections:
+        words = section.split()
+        if len(words) <= size:
+            chunks.append(section if "\n" not in section else " ".join(words))
+        else:
+            chunks.extend(chunk_text(section, chunk_size=size, overlap=ov))
+    return chunks if chunks else chunk_text(text, chunk_size=size, overlap=ov)
 
 
 def _paragraphs(text):
@@ -162,13 +230,14 @@ Documentation:
     return chunks
 
 
-def chunk_text_auto(text, chunk_size=500):
-    """Dispatch to fixed, semantic, or agentic chunking based on CHUNK_STRATEGY."""
+def chunk_text_auto(text, chunk_size=None):
+    """Dispatch to fixed (section-aware), semantic, or agentic chunking based on CHUNK_STRATEGY."""
+    size = CHUNK_SIZE if chunk_size is None else chunk_size
     if CHUNK_STRATEGY == "semantic":
         return chunk_text_semantic(text)
     if CHUNK_STRATEGY == "agentic":
         return chunk_text_agentic(text)
-    return chunk_text(text, chunk_size)
+    return chunk_text_sectioned(text, chunk_size=size)
 
 def gather_docs(folder="docs"):
     """Read text files from folder, return list of text chunks (strategy from CHUNK_STRATEGY)."""
@@ -217,14 +286,15 @@ def get_embeddings_and_chunks_from_urls(url_list, delay_sec=1.5):
     return embeddings, payloads
 
 
-# Max words per command doc when building embedding text (avoids huge vectors)
-MAN_PAGES_EMBED_WORDS = 1500
+# Max words per command doc chunk when embedding / storing (long docker pages)
+MAN_PAGES_EMBED_WORDS = int(os.environ.get("COMMAND_CHUNK_WORDS", "900"))
 
 
 def get_embeddings_and_payloads_for_man_pages(index_url, delay_sec=1.5):
     """
-    Scrape man page index + detail pages, one point per command.
-    Returns (embeddings, payloads) where payloads are dicts with "command", "description", "text".
+    Scrape man page index + detail pages.
+    Long pages become multiple points (same command metadata) with overlapping chunks.
+    Returns (embeddings, payloads) with "command", "description", "text".
     """
     entries = scrape_man_page_index(
         index_url,
@@ -239,32 +309,39 @@ def get_embeddings_and_payloads_for_man_pages(index_url, delay_sec=1.5):
     texts_to_embed = []
 
     for e in entries:
-        payload = {
-            "command": e["command"],
-            "description": e["description"],
-            "text": e["text"],
-        }
-        payloads.append(payload)
-        # Embed a summary: command + description + (truncated) full doc
-        parts = [f"Command: {e['command']}", f"Description: {e['description']}"]
-        if e["text"]:
-            words = e["text"].split()[:MAN_PAGES_EMBED_WORDS]
-            parts.append(" ".join(words))
-        texts_to_embed.append("\n\n".join(parts))
+        body = e.get("text") or ""
+        body_chunks = chunk_text_auto(body) if body else [""]
+        if not body_chunks:
+            body_chunks = [""]
+        for idx, chunk in enumerate(body_chunks):
+            # Hard cap very long leftover chunks for embedding quality
+            words = chunk.split()
+            if len(words) > MAN_PAGES_EMBED_WORDS:
+                chunk = " ".join(words[:MAN_PAGES_EMBED_WORDS])
+            payload = {
+                "command": e["command"],
+                "description": e["description"],
+                "text": chunk,
+                "chunk_index": idx,
+            }
+            payloads.append(payload)
+            parts = [f"Command: {e['command']}", f"Description: {e['description']}"]
+            if chunk:
+                parts.append(chunk)
+            texts_to_embed.append("\n\n".join(parts))
 
     embeddings = model.encode(texts_to_embed)
     return embeddings, payloads
 
 
-# Max words per Docker CLI doc when building embedding text (same as man_pages)
-DOCKER_CLI_EMBED_WORDS = 1500
+# Max words per Docker CLI doc chunk (same as man_pages)
+DOCKER_CLI_EMBED_WORDS = MAN_PAGES_EMBED_WORDS
 
 
 def get_embeddings_and_payloads_for_docker_cli(index_url, delay_sec=1.5):
     """
-    Scrape Docker CLI reference (sidebar nav only, no TOC), one point per command.
-    Returns (embeddings, payloads) where payloads have "command", "description", "text", "source" (url).
-    Same structure as man_pages so the API formats them identically.
+    Scrape Docker CLI reference; long command pages become multiple chunked points.
+    Returns (embeddings, payloads) with "command", "description", "text", "source".
     """
     entries = scrape_docker_cli_index(
         index_url,
@@ -279,25 +356,33 @@ def get_embeddings_and_payloads_for_docker_cli(index_url, delay_sec=1.5):
     texts_to_embed = []
 
     for e in entries:
-        payload = {
-            "command": e["command"],
-            "description": e.get("description", ""),
-            "text": e.get("text", ""),
-            "source": e.get("source", e.get("detail_url", "")),
-        }
-        payloads.append(payload)
-        parts = [f"Command: {e['command']}", f"Description: {e.get('description', '')}"]
-        if e.get("text"):
-            words = e["text"].split()[:DOCKER_CLI_EMBED_WORDS]
-            parts.append(" ".join(words))
-        texts_to_embed.append("\n\n".join(parts))
+        body = e.get("text") or ""
+        body_chunks = chunk_text_auto(body) if body else [""]
+        if not body_chunks:
+            body_chunks = [""]
+        for idx, chunk in enumerate(body_chunks):
+            words = chunk.split()
+            if len(words) > DOCKER_CLI_EMBED_WORDS:
+                chunk = " ".join(words[:DOCKER_CLI_EMBED_WORDS])
+            payload = {
+                "command": e["command"],
+                "description": e.get("description", ""),
+                "text": chunk,
+                "source": e.get("source", e.get("detail_url", "")),
+                "chunk_index": idx,
+            }
+            payloads.append(payload)
+            parts = [f"Command: {e['command']}", f"Description: {e.get('description', '')}"]
+            if chunk:
+                parts.append(chunk)
+            texts_to_embed.append("\n\n".join(parts))
 
     embeddings = model.encode(texts_to_embed)
     return embeddings, payloads
 
 
 def _html_file_to_text(filepath):
-    """Read an HTML file and return plain text (tags stripped)."""
+    """Read an HTML file and return plain text (tags stripped, paragraphs kept)."""
     try:
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             html = f.read()
@@ -306,7 +391,9 @@ def _html_file_to_text(filepath):
     soup = BeautifulSoup(html, "html.parser")
     for s in soup(["script", "style"]):
         s.extract()
-    return " ".join(soup.get_text(separator=" ").split())
+    raw = soup.get_text(separator="\n")
+    parts = [p.strip() for p in re.split(r"\n\s*\n+", raw) if p.strip()]
+    return "\n\n".join(parts)
 
 
 def _strip_adoc_inline(text):
@@ -343,7 +430,7 @@ def _adoc_file_to_text(filepath):
             in_fence = not in_fence
             continue
         if in_fence:
-            lines.append(s)
+            lines.append(("code", s))
             continue
         # Document/attribute lines
         if s.startswith(":") and ":" in s[1:]:
@@ -359,16 +446,38 @@ def _adoc_file_to_text(filepath):
         if s.startswith("="):
             title = s.lstrip("= ").strip()
             if title:
-                lines.append(_strip_adoc_inline(title))
+                lines.append(("heading", _strip_adoc_inline(title)))
             continue
         # Unordered / ordered list items (keep the content)
         if re.match(r"^[\*\.]+\s+", s):
             item = re.sub(r"^[\*\.]+\s+", "", s)
             if item:
-                lines.append(_strip_adoc_inline(item))
+                lines.append(("list", _strip_adoc_inline(item)))
             continue
-        lines.append(_strip_adoc_inline(s))
-    return " ".join(" ".join(lines).split())
+        lines.append(("prose", _strip_adoc_inline(s)))
+
+    # Build text with real paragraphs: headings start new blocks; lists stay line-based
+    blocks = []
+    buf = []
+    def flush():
+        nonlocal buf
+        if buf:
+            blocks.append(" ".join(buf))
+            buf = []
+    for kind, text in lines:
+        if kind == "heading":
+            flush()
+            blocks.append(text)
+        elif kind == "list":
+            flush()
+            blocks.append(text)
+        elif kind == "code":
+            flush()
+            blocks.append(text)
+        else:
+            buf.append(text)
+    flush()
+    return "\n\n".join(b for b in blocks if b)
 
 
 def get_embeddings_and_payloads_from_html_folder(folder):

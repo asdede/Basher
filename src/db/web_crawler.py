@@ -1,3 +1,4 @@
+import re
 import time
 from urllib.parse import urljoin, urlparse
 
@@ -68,8 +69,20 @@ def _extract_main_text(soup, url=""):
                 for el in (root.select(sel) if hasattr(root, "select") else []):
                     el.extract()
 
-    text = root.get_text(separator=" ") if root else soup.get_text(separator=" ")
-    return " ".join(text.split())
+    text = root.get_text(separator="\n") if root else soup.get_text(separator="\n")
+    # Keep paragraph structure for section-aware chunking; collapse only runs of blank lines
+    lines = [ln.strip() for ln in text.splitlines()]
+    cleaned = []
+    blank = 0
+    for ln in lines:
+        if not ln:
+            blank += 1
+            if blank <= 1:
+                cleaned.append("")
+            continue
+        blank = 0
+        cleaned.append(ln)
+    return "\n".join(cleaned).strip()
 
 
 def scrape_page(url, session=None, timeout=15, retries=3):
@@ -222,8 +235,9 @@ def _extract_docker_cli_main_text(soup):
         if description:
             break
 
-    text = " ".join(article.get_text(separator=" ").split())
-    return title, description, text
+    raw = article.get_text(separator="\n")
+    parts = [p.strip() for p in re.split(r"\n\s*\n+", raw) if p.strip()]
+    return title, description, "\n\n".join(parts)
 
 
 def scrape_docker_cli_index(index_url, fetch_details=True, delay_sec=DEFAULT_DELAY_SEC):
