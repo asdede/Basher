@@ -11,10 +11,10 @@
  * other.
  *
  * Why a fresh agent session per turn (and a cached `summary` instead)?
- *   The driving model is qwen2.5-coder:1.5b. Long transcripts hurt it more
- *   than they help — relevance dilutes, schema drift creeps in, and tool
- *   calls start hallucinating flags. A short compressed memory keeps
- *   continuity without paying the long-context tax.
+ *   The driving model is a local tool-capable Qwen (default qwen3.5:4b).
+ *   Long transcripts still hurt more than they help — relevance dilutes,
+ *   schema drift creeps in, and tool calls start hallucinating flags.
+ *   A short compressed memory keeps continuity without the long-context tax.
  *
  *   `next_step` is *only* used when the user presses Enter on an empty
  *   agent prompt ("return prompt"). Any non-empty input wins.
@@ -412,6 +412,8 @@
         debug: false,
         base_model: false,
         session_id: null,
+        // null → server auto-routes RAG (docs for how-to; tools-only for live state)
+        use_retrieval: null,
         prior_summary: cachedSummary || null,
         // Verbatim last-N memory. Sent fresh on every prompt so the
         // server stays stateless w.r.t. our chat history.

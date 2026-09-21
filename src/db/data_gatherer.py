@@ -34,7 +34,7 @@ SEMANTIC_MAX_WORDS = int(os.environ.get("SEMANTIC_CHUNK_MAX_WORDS", str(CHUNK_SI
 
 # Agentic chunking: Ollama endpoint (used during ingest)
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
-OLLAMA_CHUNK_MODEL = os.environ.get("OLLAMA_CHUNK_MODEL", "qwen2.5-coder:1.5b")
+OLLAMA_CHUNK_MODEL = os.environ.get("OLLAMA_CHUNK_MODEL", "qwen3.5:4b")
 
 _embedder_cache = None
 

@@ -1,6 +1,21 @@
 # Päiväkirja projektiin liittyen
 *Poistetaan*
 
+## 5.9
+- RAG korjauksia
+- Agentti käyttääm RAG
+- scraper korjauksia
+- dokumentaation laajennuksia
+- RAG optimointia
+- Projekti homman kirjottelua
+
+## 3.9
+- Nykyiseen tilaan tutustumista
+- Optimointikohteiden kartoittamista
+- Bugien kartoittamista
+- TODO listan kirjoittelua
+
+
 ## 13.6
 - Viimeistelyä
 - Promptien viimeistelyä ja parannuksia

@@ -51,7 +51,7 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434/api/generate")
 OLLAMA_CHAT_URL = os.environ.get(
     "OLLAMA_CHAT_URL", OLLAMA_URL.replace("/api/generate", "/api/chat")
 )
-MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:3b")
+MODEL = os.environ.get("OLLAMA_MODEL", "qwen3.5:4b")
 # Ollama defaults to num_ctx=2048, which silently truncates our system
 # prompt + RAG context + recent turns. 4096 is comfortable for 7b on
 # 8GB VRAM (Q4_K_M ~5.5-6GB total). Drop to 2048 if you OOM, bump if you
@@ -60,7 +60,7 @@ try:
     NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
 except ValueError:
     NUM_CTX = 4096
-QDRANT_URL = "http://qdrant:6333"
+QDRANT_URL = os.environ.get("QDRANT_URL", "http://qdrant:6333")
 EMBED_MODEL = "all-MiniLM-L6-v2"
 COLLECTIONS = ["fedora_quick_docs", "bash_docs", "man_pages", "docker_docs", "git_docs"]
 # Per-collection candidate fetch (then re-rank globally)

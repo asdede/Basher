@@ -18,10 +18,13 @@ COPY ./src/api/ .
 RUN mkdir -p /app/src/db
 COPY ./src/db/*.py /app/src/db/
 COPY ./config /app/config
+# Placeholder only; real Fedora quick-docs are bind-mounted from ./docs at runtime
+# (see docker-compose.yml and Scripts/fetch-fedora-docs.sh).
 RUN mkdir -p /app/docs/quick-docs
 RUN touch /app/src/__init__.py /app/src/db/__init__.py
 ENV PYTHONPATH=/app
 ENV QDRANT_URL=http://qdrant:6333
+ENV DOCPAGES_CONFIG=/app/config/docPages.json
 RUN chown -R app:app /app
 ENV ENVIRONMENT=DOCKER
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

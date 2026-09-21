@@ -3,8 +3,8 @@ Agent loop for Basher.
 
 Design notes
 ------------
-The LLM we're driving (qwen2.5-coder:1.5b on local Ollama) is a *small* model —
-1.5B parameters. That shapes every choice in this file:
+The LLM we're driving (qwen3.5:4b on local Ollama by default) is a *local*
+tool-capable model — keep prompts tight so JSON tool contracts stay reliable:
 
   1. Single, tight system prompt. Long prose hurts small models (lost-in-the-
      middle + attention dilution).
@@ -613,7 +613,7 @@ def _is_refusal(text: str) -> bool:
 # Tokens the model knows from the system prompt: schema keys, schema
 # enum values, tool type names, plus the generic placeholder words
 # (`result`, `value`, `path`, `location`, ...) that small models like
-# to emit when they can't follow through. Under `format: "json"` a 1.5b
+# to emit when they can't follow through. Under `format: "json"` a small
 # coder sometimes "satisfies" the contract by filling `final_answer`
 # with one of these verbatim. The result parses as valid JSON but tells
 # the user nothing — surfacing it is worse than admitting the turn

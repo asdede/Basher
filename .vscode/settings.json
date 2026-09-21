@@ -1,6 +1,9 @@
 {
     "conventionalCommits.scopes": [
         "RAG",
-        "scraper"
+        "scraper",
+        "eval",
+        "retrieval",
+        "agent"
     ]
 }
