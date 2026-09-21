@@ -43,7 +43,8 @@ OLLAMA_GENERATE_URL_DEFAULT = "http://ollama:11434/api/generate"
 
 MAX_TOOL_CALLS_PER_TURN = 2
 MAX_ITERATIONS = 6
-MAX_TOOL_OUTPUT_CHARS = 4000  # what we feed back to the model per tool result
+MAX_TOOL_OUTPUT_CHARS = 3000  # feed back to the model per tool result (fits num_ctx)
+MAX_HOST_CONTEXT_CHARS = 800
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +64,9 @@ MAX_TOOL_OUTPUT_CHARS = 4000  # what we feed back to the model per tool result
 #   counter with explicit "stop and answer as soon as you can".
 
 SYSTEM_PROMPT = """You are Basher, an expert Fedora Linux engineer with a real
-bash terminal on the user's machine. The user runs Fedora 43.
+bash terminal on the user's machine. Confirm distro/release/kernel with
+tools (or Host facts below) when the question is about THIS machine — do
+not invent a Fedora version number.
 
 You help with Fedora, bash, git, docker, systemd, dnf, SELinux, networking,
 and developer workflows. You either answer from knowledge OR run shell
@@ -201,7 +204,7 @@ Assistant:
 
 Tool result (uname -r): "6.14.6-300.fc43.x86_64"
 Assistant:
-{"thoughts":"Got the kernel version, can answer.","tool_calls":[],"final_answer":"The running kernel is **6.14.6-300.fc43.x86_64** (Fedora 43).\\n\\n```bash\\nuname -r\\n```"}
+{"thoughts":"Got the kernel version, can answer.","tool_calls":[],"final_answer":"The running kernel is **6.14.6-300.fc43.x86_64**.\\n\\n```bash\\nuname -r\\n```"}
 
 User: "How do I check which Fedora release I'm on?"
 Assistant:
@@ -1140,6 +1143,7 @@ def build_initial_messages(
     base_model: bool = False,
     prior_summary: str = "",
     prior_turns: list[dict] | None = None,
+    host_context: str = "",
 ) -> list[dict]:
     """Build the message array for the first agent turn.
 
@@ -1152,12 +1156,26 @@ def build_initial_messages(
       for things a single summary can't capture ("yes, do that", "from
       that result, do X", references to a prior command).
 
+    `host_context` is optional short facts from the client (os-release,
+    kernel, user). Session-scoped awareness only — not long-term prefs.
+
     Both layers are clamped before they reach the model — small models
     treat long context blocks as instructions and start ignoring the
     *current* user turn. We err on the side of "less context, but
     relevant context".
     """
     sys_content = SYSTEM_PROMPT
+
+    host = (host_context or "").strip()
+    if host:
+        if len(host) > MAX_HOST_CONTEXT_CHARS:
+            host = host[:MAX_HOST_CONTEXT_CHARS].rstrip() + "..."
+        sys_content += (
+            "\n\n# Host facts (this session)\n"
+            "Verified on the user's machine at session start. Prefer these "
+            "over assumptions about distro/release/user. Still use tools "
+            "for live state that may have changed.\n\n" + host
+        )
 
     # --- Verbatim recent turns (preferred over the summary when fresh)
     turns = list(prior_turns or [])

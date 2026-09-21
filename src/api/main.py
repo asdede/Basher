@@ -53,13 +53,13 @@ OLLAMA_CHAT_URL = os.environ.get(
 )
 MODEL = os.environ.get("OLLAMA_MODEL", "qwen3.5:4b")
 # Ollama defaults to num_ctx=2048, which silently truncates our system
-# prompt + RAG context + recent turns. 4096 is comfortable for 7b on
-# 8GB VRAM (Q4_K_M ~5.5-6GB total). Drop to 2048 if you OOM, bump if you
-# have more VRAM.
+# prompt (~3k tok) + RAG + tool results. qwen3.5:4b needs headroom for
+# agent turns; 12288 fits SYS+docs+tools on an 8GB RTX 3050 (Q4_K_M).
+# Drop to 8192 if you OOM; raise if you have spare VRAM.
 try:
-    NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+    NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "12288"))
 except ValueError:
-    NUM_CTX = 4096
+    NUM_CTX = 12288
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://qdrant:6333")
 EMBED_MODEL = "all-MiniLM-L6-v2"
 COLLECTIONS = ["fedora_quick_docs", "bash_docs", "man_pages", "docker_docs", "git_docs"]
@@ -80,11 +80,39 @@ except ValueError:
     MIN_SCORE = 0.32
 # Truncate each chunk in the prompt so one Docker page cannot flood context
 try:
-    MAX_CHUNK_CHARS = int(os.environ.get("RAG_MAX_CHUNK_CHARS", "1600"))
+    MAX_CHUNK_CHARS = int(os.environ.get("RAG_MAX_CHUNK_CHARS", "1400"))
 except ValueError:
-    MAX_CHUNK_CHARS = 1600
+    MAX_CHUNK_CHARS = 1400
+# Hard cap on total retrieved docs text (after per-chunk trunc). Keeps
+# RAG from crowding tools/answer out of num_ctx even when top-N is high.
+try:
+    MAX_DOCS_CHARS = int(os.environ.get("RAG_MAX_DOCS_CHARS", "10000"))
+except ValueError:
+    MAX_DOCS_CHARS = 10000
 # Backward-compatible alias used in older comments/docs
 TOP_K = PER_COLLECTION_K
+
+
+def _join_documentation(chunks: list[str]) -> str:
+    """Join retrieved chunks, truncating the total to MAX_DOCS_CHARS."""
+    if not chunks:
+        return ""
+    joined = "\n\n".join(chunks)
+    if len(joined) <= MAX_DOCS_CHARS:
+        return joined
+    # Prefer keeping higher-ranked chunks (they come first).
+    kept: list[str] = []
+    used = 0
+    for c in chunks:
+        piece = c if used == 0 else "\n\n" + c
+        if used + len(piece) > MAX_DOCS_CHARS:
+            room = MAX_DOCS_CHARS - used - (0 if used == 0 else 2)
+            if room > 80:
+                kept.append(c[: room - 1].rsplit(" ", 1)[0] + "…")
+            break
+        kept.append(c)
+        used += len(piece)
+    return "\n\n".join(kept)
 
 qdrant = QdrantClient(url=QDRANT_URL)
 embedder = SentenceTransformer(EMBED_MODEL)
@@ -121,6 +149,10 @@ class AgentRunRequest(BaseModel):
     # Explicit true/false still overrides. Auto keeps the tool loop sharp
     # for "where is my X?" while grounding "how do I …?" in docs.
     use_retrieval: bool | None = None
+    # Optional short host facts from the Electron client (os-release,
+    # kernel, user). Injected once into the system prompt so the model
+    # does not hardcode a wrong Fedora version.
+    host_context: str | None = None
 
 
 class AgentToolResult(BaseModel):
@@ -330,7 +362,7 @@ def _retrieval_context(prompt: str, debug: bool = False):
         q_vec, debug=debug, query=prompt
     )
     if chunks:
-        context = "\n\n".join(chunks)
+        context = _join_documentation(chunks)
     elif any_searched:
         context = "No relevant documentation found for this question."
     else:
@@ -480,6 +512,7 @@ def agent_run(payload: AgentRunRequest):
                 base_model=payload.base_model,
                 prior_summary=payload.prior_summary or "",
                 prior_turns=prior_turns_raw,
+                host_context=payload.host_context or "",
             ),
         }
         agent_sessions[session_id] = session
@@ -611,7 +644,7 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
         )
 
         if chunks:
-            context = "\n\n".join(chunks)
+            context = _join_documentation(chunks)
         elif any_collection_searched:
             context = "No relevant documentation found for this question."
         else:
@@ -639,8 +672,13 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
         json={
             "model": MODEL,
             "prompt": full_prompt,
-            "stream": False
-        }
+            "stream": False,
+            "options": {
+                "num_ctx": NUM_CTX,
+                "temperature": 0.2,
+                "num_predict": 768,
+            },
+        },
     )
     response.raise_for_status()
 

@@ -211,6 +211,32 @@
   const PRIOR_TURNS_KEEP = 3;
   const recentTurns = []; // [{ user, answer }]
 
+  // Session host facts (os-release / kernel / user). Collected once via
+  // basherShell.exec so the API can inject them — not long-term prefs.
+  let hostContext = null;
+  let hostContextPromise = null;
+
+  async function ensureHostContext() {
+    if (hostContext) return hostContext;
+    if (hostContextPromise) return hostContextPromise;
+    hostContextPromise = (async () => {
+      try {
+        const cmd =
+          "printf 'os: '; grep -E '^(NAME|VERSION)=' /etc/os-release | tr '\\n' ' '; " +
+          "printf '\\nkernel: '; uname -r; " +
+          "printf 'user: '; whoami; " +
+          "printf 'home: '; printf '%s\\n' \"$HOME\"";
+        const r = await window.basherShell.exec(cmd, { timeoutMs: 5_000 });
+        const text = String((r && r.stdout) || "").trim();
+        if (text) hostContext = text.slice(0, 800);
+      } catch (_) {
+        hostContext = "";
+      }
+      return hostContext || "";
+    })();
+    return hostContextPromise;
+  }
+
   // Consecutive schema-failure counter. When the model fails several
   // turns in a row we assume the rolling memory is poisoning new turns
   // ("find_folder" style placeholder after an exit=1 search) and wipe
@@ -406,6 +432,7 @@
 
     let turn;
     try {
+      const hostFacts = await ensureHostContext();
       const payload = {
         query,
         mode: "interactive",
@@ -418,6 +445,7 @@
         // Verbatim last-N memory. Sent fresh on every prompt so the
         // server stays stateless w.r.t. our chat history.
         prior_turns: recentTurns.length ? recentTurns.slice() : null,
+        host_context: hostFacts || null,
       };
       turn = await window.basherAgentApi.runAgent(payload);
     } catch (err) {
