@@ -68,16 +68,23 @@ try:
     PER_COLLECTION_K = int(os.environ.get("RAG_PER_COLLECTION_K", "4"))
 except ValueError:
     PER_COLLECTION_K = 4
-# Final chunks fed to the model (best scores across all collections)
+# Final chunks fed to the model (best scores across all collections).
+# Keep this small: noisy extra chunks made qwen3.5:4b over-refuse / invent flags.
 try:
-    CONTEXT_TOP_N = int(os.environ.get("RAG_CONTEXT_TOP_N", "8"))
+    CONTEXT_TOP_N = int(os.environ.get("RAG_CONTEXT_TOP_N", "4"))
 except ValueError:
-    CONTEXT_TOP_N = 8
-# Cosine floor — relevant hits in our smoke tests were typically >= ~0.45
+    CONTEXT_TOP_N = 4
+# Cosine floor — raised from 0.32 so weak hits never reach the prompt.
 try:
-    MIN_SCORE = float(os.environ.get("RAG_MIN_SCORE", "0.32"))
+    MIN_SCORE = float(os.environ.get("RAG_MIN_SCORE", "0.40"))
 except ValueError:
-    MIN_SCORE = 0.32
+    MIN_SCORE = 0.40
+# If the best kept hit is below this, skip docs entirely and answer from
+# knowledge (avoids "docs don't say…" refusals on standard Fedora how-tos).
+try:
+    RAG_USE_DOCS_MIN = float(os.environ.get("RAG_USE_DOCS_MIN", "0.45"))
+except ValueError:
+    RAG_USE_DOCS_MIN = 0.45
 # Truncate each chunk in the prompt so one Docker page cannot flood context
 try:
     MAX_CHUNK_CHARS = int(os.environ.get("RAG_MAX_CHUNK_CHARS", "1400"))
@@ -86,9 +93,9 @@ except ValueError:
 # Hard cap on total retrieved docs text (after per-chunk trunc). Keeps
 # RAG from crowding tools/answer out of num_ctx even when top-N is high.
 try:
-    MAX_DOCS_CHARS = int(os.environ.get("RAG_MAX_DOCS_CHARS", "10000"))
+    MAX_DOCS_CHARS = int(os.environ.get("RAG_MAX_DOCS_CHARS", "6000"))
 except ValueError:
-    MAX_DOCS_CHARS = 10000
+    MAX_DOCS_CHARS = 6000
 # Backward-compatible alias used in older comments/docs
 TOP_K = PER_COLLECTION_K
 
@@ -324,6 +331,19 @@ def _collect_chunks(q_vec, debug=False, query: str = ""):
 
     candidates.sort(key=lambda c: c["boosted"], reverse=True)
     top = candidates[:CONTEXT_TOP_N]
+    best_score = float(top[0]["score"]) if top else 0.0
+    # Grounding gate: weak best-hit → treat as no usable docs.
+    if top and best_score < RAG_USE_DOCS_MIN:
+        if debug:
+            debug_info.append(
+                {
+                    "skipped_low_confidence": True,
+                    "best_score": round(best_score, 4),
+                    "rag_use_docs_min": RAG_USE_DOCS_MIN,
+                    "would_have_used": len(top),
+                }
+            )
+        top = []
     chunks = [c["text"] for c in top]
     if debug:
         debug_info.append(
@@ -337,7 +357,9 @@ def _collect_chunks(q_vec, debug=False, query: str = ""):
                         "source": str(c.get("source") or "")[:80],
                     }
                     for c in top
-                ]
+                ],
+                "best_score": round(best_score, 4) if candidates else None,
+                "rag_use_docs_min": RAG_USE_DOCS_MIN,
             }
         )
     return chunks, any_searched, debug_info
@@ -356,20 +378,21 @@ def ask(query: dict, debug: bool = False, base_model: bool = False):
 
 
 def _retrieval_context(prompt: str, debug: bool = False):
-    """Run the RAG pipeline for the agent's initial system prompt."""
+    """Run the RAG pipeline for the agent's initial system prompt.
+
+    Returns empty context when hits are weak so the agent is not pushed into
+    "docs don't say…" refusals on ordinary host/how-to questions.
+    """
     q_vec = embedder.encode(prompt).tolist()
     chunks, any_searched, debug_info = _collect_chunks(
         q_vec, debug=debug, query=prompt
     )
     if chunks:
         context = _join_documentation(chunks)
-    elif any_searched:
-        context = "No relevant documentation found for this question."
     else:
-        context = (
-            "Documentation collections are not initialized. "
-            "Populate the database by running: python -m src.db.init (see README)."
-        )
+        context = ""
+        if debug and not any_searched:
+            debug_info = list(debug_info) + [{"status": "collections_missing"}]
     return context, len(chunks), debug_info
 
 
@@ -622,6 +645,19 @@ def agent_session(session_id: str):
     }
 
 
+def _ask_knowledge_prompt(prompt: str) -> str:
+    return (
+        "You are a Fedora Linux assistant for Fedora, bash, git, docker, and common "
+        "Linux CLI tasks.\n"
+        "Answer helpfully from your knowledge. Prefer standard Fedora tools "
+        "(dnf, not apt). Be concise; include a short ```bash``` example when "
+        "giving commands.\n"
+        "Do not refuse ordinary how-to questions. Do not invent nonexistent "
+        "subcommands (e.g. `git sync`, `ps list`, `docker restart all`).\n\n"
+        "User question: " + prompt
+    )
+
+
 def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
     prompt = (prompt or "").strip()
     if not prompt:
@@ -630,12 +666,10 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
     context = ""
     chunks = []
     debug_info = []
+    used_retrieval = False
     # No database use when using only base model.
     if base_model:
-        full_prompt = (
-            "You are Fedora Linux assistant. You help users related to fedora linux usage, docker usage, git usage, bash usage. Answer the user question based on your knowledge. \n\n"
-            "User question: " + prompt
-        )
+        full_prompt = _ask_knowledge_prompt(prompt)
 
     else:
         q_vec = embedder.encode(prompt).tolist()
@@ -645,34 +679,50 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
 
         if chunks:
             context = _join_documentation(chunks)
-        elif any_collection_searched:
-            context = "No relevant documentation found for this question."
-        else:
+            used_retrieval = True
+            full_prompt = (
+                "You are a Fedora Linux assistant for Fedora, bash, git, and docker.\n"
+                "Documentation below may help — use it when it clearly matches the "
+                "question (prefer its exact commands/flags).\n"
+                "Rules:\n"
+                "- Answer the user question. Never refuse a normal Fedora/bash/git/"
+                "docker how-to just because the docs are incomplete.\n"
+                "- If docs help, ground the answer in them. If docs are thin, "
+                "irrelevant, or silent on a standard command, answer from knowledge "
+                "anyway (e.g. `dnf search`, `dnf repolist`, `docker ps`, `man ls`, "
+                "`git reflog`).\n"
+                "- Do not invent nonexistent commands/flags. Prefer dnf over apt on "
+                "Fedora. Mentioning that apt is wrong for Fedora is OK.\n"
+                "- Be concise; include a short ```bash``` example when giving "
+                "commands.\n\n"
+                "Documentation:\n" + context + "\n\n"
+                "User question: " + prompt
+            )
+        elif not any_collection_searched:
             context = (
                 "Documentation collections are not initialized. "
                 "Populate the database by running: python -m src.db.init (see README)."
             )
+            full_prompt = _ask_knowledge_prompt(prompt)
+            if debug:
+                debug_info = list(debug_info) + [{"status": "collections_missing"}]
+        else:
+            # Searched but nothing strong enough — knowledge path (no "docs missing" guilt).
+            context = ""
+            full_prompt = _ask_knowledge_prompt(prompt)
+            if debug:
+                debug_info = list(debug_info) + [{"status": "retrieval_skipped_low_or_empty"}]
 
-        full_prompt = (
-            "You are a Fedora Linux assistant for Fedora, bash, git, and docker.\n"
-            "Use the Documentation below as your PRIMARY source.\n"
-            "Rules:\n"
-            "- If the docs answer the question, ground your reply in them and prefer "
-            "their exact commands/flags.\n"
-            "- If the docs are incomplete or irrelevant, say what is missing rather "
-            "than inventing flags, paths, or package names.\n"
-            "- Never invent dnf/apt/docker/git/bash options that are not in the docs.\n"
-            "- Be concise; include a short ```bash``` example when giving commands.\n\n"
-            "Documentation:\n" + context + "\n\n"
-            "User question: " + prompt
-        )
-
+    # qwen3.5 (and similar) can spend the entire num_predict budget on
+    # internal "thinking" and return an empty `response`. For /ask/eval we
+    # want the user-facing answer, so disable thinking at the Ollama layer.
     response = requests.post(
         OLLAMA_URL,
         json={
             "model": MODEL,
             "prompt": full_prompt,
             "stream": False,
+            "think": False,
             "options": {
                 "num_ctx": NUM_CTX,
                 "temperature": 0.2,
@@ -681,16 +731,33 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
         },
     )
     response.raise_for_status()
+    payload = response.json()
+    answer = (payload.get("response") or "").strip()
+    if not answer and (payload.get("thinking") or "").strip():
+        # Defensive fallback if a server ignores think=false.
+        answer = str(payload.get("thinking") or "").strip()
 
     if debug:
         return {
-            "response": response.json()["response"],
+            "response": answer,
             "base_model": base_model,
-            "context": context if not base_model else "(base model only — no retrieval)",
+            "context": (
+                context
+                if (not base_model and used_retrieval)
+                else (
+                    "(base model only — no retrieval)"
+                    if base_model
+                    else "(retrieval skipped — low confidence or empty)"
+                )
+            ),
             "prompt": full_prompt,
-            "retrieval": {"chunks_used": len(chunks) if not base_model else 0, "collections": debug_info if not base_model else []},
+            "retrieval": {
+                "chunks_used": len(chunks) if (not base_model and used_retrieval) else 0,
+                "used_retrieval": bool(used_retrieval) and not base_model,
+                "collections": debug_info if not base_model else [],
+            },
         }
-    return {"response": response.json()["response"]}
+    return {"response": answer}
 
 
 def _get_dataset():

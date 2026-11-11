@@ -25,21 +25,33 @@ The dataset is organized in **sections**:
 
 ## Running evals
 
-1. Start the API (e.g. `docker compose up -d`).
-2. From project root or from `eval/`:
+1. Start the API (e.g. `./Scripts/basher.sh --start` or `docker compose up -d`).
+2. Confirm freeze: `curl -s localhost:8000/health` → expected model + `num_ctx`.
+3. From project root:
    ```bash
-   # Default: dataset.json, output in eval/results/results_<timestamp>.json
-   python eval/run_evals.py
+   # RAG (retrieval on)
+   python eval/run_evals.py -o eval/rag_qwen35_4b.json
 
-   # Custom paths
-   python eval/run_evals.py --dataset eval/dataset.json --output eval/results
+   # Baseline (no RAG)
+   python eval/run_evals.py --base-model -o eval/base_qwen35_4b.json
 
    # Dry run (no API calls; useful to check output shape)
    python eval/run_evals.py --no-call
+
+   # Markdown summary for the report
+   python eval/summarize_results.py \
+     eval/rag_qwen35_4b.json \
+     eval/base_qwen35_4b.json \
+     -o eval/SUMMARY.md
    ```
-3. Optional env: `BASHER_API_URL=http://localhost:8000` (default).
+4. Optional env: `BASHER_API_URL=http://localhost:8000` (default).
 
 **Requires:** `requests` (e.g. `pip install requests` or use the project’s API venv).
+
+`run_meta` in each results file records `mode`, `base_model`, `model`, and `num_ctx` from `/health`.
+
+Latest frozen run (2026-11-11): auto **39/46 (85%)** for both RAG and baseline — see `eval/SUMMARY.md`.
+
 
 ## Output format (for React scoring app)
 
