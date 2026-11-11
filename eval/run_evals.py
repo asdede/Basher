@@ -3,7 +3,10 @@
 Run Basher evaluation dataset against the API.
 
 Usage:
-  API_URL=http://localhost:8000 python run_evals.py [--dataset path] [--output path] [--no-call]
+  python eval/run_evals.py
+  python eval/run_evals.py --base-model -o eval/results/base_qwen35_4b.json
+  python eval/run_evals.py -o eval/results/rag_qwen35_4b.json
+  BASHER_API_URL=http://localhost:8000 python eval/run_evals.py --no-call
 
 Output JSON is suitable for a React scoring app: each item has response, context,
 retrieval info, auto_pass (for auto-review items), and placeholder for human score.
@@ -13,6 +16,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, List, Optional
 
@@ -46,6 +50,19 @@ def get_items_with_sections(data: dict) -> List[tuple]:
         return out
     # Legacy flat items
     return [(item, item.get("category", "other"), item.get("category", "other")) for item in data.get("items", [])]
+
+
+def fetch_health() -> dict:
+    """Best-effort /health for run_meta (model, num_ctx)."""
+    try:
+        r = requests.get(f"{API_URL}/health", timeout=10)
+        if r.ok:
+            ct = r.headers.get("content-type", "")
+            if "json" in ct:
+                return r.json()
+    except requests.RequestException:
+        pass
+    return {}
 
 
 def ask_api(query: str, debug: bool = True, use_base_model: bool = False) -> dict:
@@ -163,7 +180,11 @@ def run_evals(
         context = out.get("context", "")
         retrieval = out.get("retrieval", {})
         if context == "" and not out.get("retrieval"):
-            print(f"  Warning: API returned no context/retrieval (ensure API uses debug from request body).", file=sys.stderr)
+            print(
+                "  Warning: API returned no context/retrieval "
+                "(ensure API uses debug from request body).",
+                file=sys.stderr,
+            )
 
         auto_result = {}
         if item.get("review_type") == "auto":
@@ -194,9 +215,23 @@ def main(
     parse_args() does not consume the process argv (e.g. uvicorn's)."""
     parser = argparse.ArgumentParser(description="Run Basher evaluation dataset")
     parser.add_argument("--dataset", "-d", type=Path, default=DEFAULT_DATASET, help="Path to dataset.json")
-    parser.add_argument("--output", "-o", type=Path, default=DEFAULT_OUTPUT, help="Output dir or file; if dir, writes results_<timestamp>.json")
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help="Output dir or file; if dir, writes results_<mode>_<timestamp>.json",
+    )
     parser.add_argument("--no-call", action="store_true", help="Dry run: do not call API, only structure output")
+    parser.add_argument(
+        "--base-model",
+        action="store_true",
+        help="Call /ask with base_model=true (no RAG). Default is RAG on.",
+    )
     args = parser.parse_args(argv)
+
+    # API runner may pass use_base_model=; CLI --base-model also sets it.
+    effective_base = bool(args.base_model) or bool(use_base_model)
 
     if not args.dataset.exists():
         print(f"Dataset not found: {args.dataset}", file=sys.stderr)
@@ -204,25 +239,39 @@ def main(
             sys.exit(1)
         raise FileNotFoundError(f"Dataset not found: {args.dataset}")
 
+    health = {} if args.no_call else fetch_health()
+    if not args.no_call and not health:
+        print(
+            f"Warning: could not read {API_URL}/health — run_meta model/num_ctx may be empty.",
+            file=sys.stderr,
+        )
+
     results = run_evals(
         args.dataset,
         args.output,
         dry_run=args.no_call,
-        use_base_model=use_base_model,
+        use_base_model=effective_base,
         progress_callback=progress_callback,
     )
 
     out_path = args.output
     if out_path.suffix != ".json":
         out_path.mkdir(parents=True, exist_ok=True)
-        from datetime import datetime
-        out_path = out_path / f"results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        mode = "base" if effective_base else "rag"
+        out_path = out_path / f"results_{mode}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    else:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
 
     payload = {
         "run_meta": {
-            "dataset": str(args.dataset),
+            "dataset": str(args.dataset.resolve()),
             "api_url": API_URL,
             "dry_run": args.no_call,
+            "base_model": effective_base,
+            "mode": "base" if effective_base else "rag",
+            "model": health.get("model"),
+            "num_ctx": health.get("num_ctx"),
+            "started_at": datetime.now(timezone.utc).isoformat(),
         },
         "results": results,
     }
