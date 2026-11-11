@@ -255,20 +255,238 @@ def _format_hit_text(payload: dict) -> str:
     return text
 
 
+# When the user names a specific tool, prefer chunks whose source/command
+# match it and gently demote common near-miss siblings (e.g. cherry-pick→rebase).
+_COMMAND_HINT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("cherry-pick", re.compile(r"\bcherry[-\s]?pick\b", re.I)),
+    ("stash", re.compile(r"\bstash\b", re.I)),
+    ("reflog", re.compile(r"\breflog\b", re.I)),
+    ("rebase", re.compile(r"\brebase\b", re.I)),
+    ("reset", re.compile(r"\breset\b", re.I)),
+    ("checkout", re.compile(r"\bcheckout\b", re.I)),
+    ("switch", re.compile(r"\b(?:git\s+)?switch\b", re.I)),
+    ("xargs", re.compile(r"\bxargs\b", re.I)),
+    ("staged", re.compile(r"\bstaged\b|\bstaging\s+area\b|--staged\b", re.I)),
+    ("diff", re.compile(r"\b(?:git\s+)?diff\b", re.I)),
+    ("subshell", re.compile(r"\bsubshell\b", re.I)),
+    ("dnf", re.compile(r"\bdnf\b", re.I)),
+    ("podman", re.compile(r"\bpodman\b", re.I)),
+]
+
+# Paraphrases that never say the command name (eval / natural questions).
+_INTENT_HINT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    (
+        "cherry-pick",
+        re.compile(
+            r"apply (a )?single commit|commit from another branch onto|"
+            r"onto my current branch",
+            re.I,
+        ),
+    ),
+    (
+        "stash",
+        re.compile(
+            r"temporarily save .{0,40}(uncommitted|changes)|"
+            r"save .{0,40}changes.{0,40}switch (branch|branches)",
+            re.I,
+        ),
+    ),
+    (
+        "reflog",
+        re.compile(
+            r"lost (a )?commit|find the lost commit|recover .{0,30}commit|"
+            r"commit hash.{0,20}lost",
+            re.I,
+        ),
+    ),
+    (
+        "xargs",
+        re.compile(
+            r"each line of (input|stdin)|command on each line|"
+            r"run a command on each line",
+            re.I,
+        ),
+    ),
+    (
+        "staged",
+        re.compile(
+            r"what .{0,20}staged|see what .{0,30}staged|staged for commit",
+            re.I,
+        ),
+    ),
+    (
+        "subshell",
+        re.compile(r"run .{0,40}in a subshell|command in a subshell", re.I),
+    ),
+]
+
+# preferred_hint -> rival tokens that often outrank it in embedding space
+_HINT_RIVALS: dict[str, tuple[str, ...]] = {
+    "cherry-pick": ("rebase", "merge"),
+    "stash": ("reset", "rebase", "checkout", "switch"),
+    "reflog": ("git-log", "/docs/git-log", "git-stash", "/docs/git-stash"),
+    "xargs": ("man1/read", "/read.", "read"),
+    "staged": ("git-log", "/docs/git-log", "/docs/git-commit"),
+    "subshell": ("man1/source", "cmd=source", "/source"),
+}
+
+# If an intent hint is present, drop these lexical hints (they mislead).
+_INTENT_DROPS: dict[str, tuple[str, ...]] = {
+    "cherry-pick": ("rebase", "merge", "checkout"),
+    "stash": ("switch", "checkout", "reset", "rebase"),
+    "reflog": ("reset", "stash"),
+    "xargs": (),
+    "staged": ("log",),
+    "subshell": (),
+}
+
+
+def _extract_command_hints(query: str) -> list[str]:
+    q = query or ""
+    intent = [name for name, pat in _INTENT_HINT_PATTERNS if pat.search(q)]
+    lexical = [name for name, pat in _COMMAND_HINT_PATTERNS if pat.search(q)]
+    drop: set[str] = set()
+    for h in intent:
+        drop.update(_INTENT_DROPS.get(h, ()))
+    # Intent first, then lexical minus drops; preserve order, unique.
+    out: list[str] = []
+    for name in intent + lexical:
+        if name in drop or name in out:
+            continue
+        out.append(name)
+    return out
+
+
 def _command_boost(query: str, payload: dict) -> float:
-    """Small score bump when the query names the command exactly."""
+    """Score bump/penalty from payload.command + source/text command hints."""
+    boost = 0.0
     cmd = (payload.get("command") or "").strip().lower()
-    if not cmd:
-        return 0.0
     q = (query or "").lower()
-    # Prefer whole-token match: "docker run" / "ls" / "git reset"
-    if re.search(rf"(?<!\w){re.escape(cmd)}(?!\w)", q):
-        return 0.08
-    # Also match bare last token (e.g. query "run container" vs "docker container run")
-    last = cmd.split()[-1]
-    if len(last) >= 2 and re.search(rf"(?<!\w){re.escape(last)}(?!\w)", q):
-        return 0.03
-    return 0.0
+    if cmd:
+        # Prefer whole-token match: "docker run" / "ls" / "git reset"
+        if re.search(rf"(?<!\w){re.escape(cmd)}(?!\w)", q):
+            boost += 0.08
+        else:
+            last = cmd.split()[-1]
+            if len(last) >= 2 and re.search(rf"(?<!\w){re.escape(last)}(?!\w)", q):
+                boost += 0.03
+
+    hints = _extract_command_hints(query)
+    if not hints:
+        return boost
+
+    source = str(payload.get("source") or "").lower()
+    text_head = (payload.get("text") or "")[:800].lower()
+    blob = f"{cmd}\n{source}\n{text_head}"
+
+    for hint in hints:
+        variants = {hint, hint.replace("-", " "), hint.replace(" ", "-")}
+        if hint == "cherry-pick":
+            variants.update({"git-cherry-pick", "git cherry-pick"})
+        if hint == "staged":
+            variants.update({"--staged", "cached", "git-diff"})
+        if hint == "subshell":
+            variants.update({"subshells"})
+
+        hit_source = any(v in source for v in variants if len(v) > 1)
+        hit_cmd = any(v in cmd for v in variants if len(v) > 1) if cmd else False
+        hit_text = any(v in text_head for v in variants if len(v) > 2)
+
+        if hit_source or hit_cmd:
+            boost += 0.18
+        elif hit_text:
+            boost += 0.07
+
+        for rival in _HINT_RIVALS.get(hint, ()):
+            rival_l = rival.lower()
+            preferred_in_source = any(
+                v.replace(" ", "-") in source or v in source for v in variants
+            )
+            rival_hit = (
+                cmd == rival_l
+                or rival_l in source
+                or (len(rival_l) > 3 and rival_l in text_head[:200])
+            )
+            if rival_hit and not preferred_in_source:
+                # Near-miss sibling page (rebase when asking cherry-pick, etc.)
+                boost -= 0.16
+
+    return boost
+
+
+def _empty_retrieval_debug() -> dict:
+    """Structured retrieval debug (never mix meta into collections[])."""
+    return {
+        "collections": [],
+        "global_top": [],
+        "best_score": None,
+        "rag_use_docs_min": RAG_USE_DOCS_MIN,
+        "skipped_low_confidence": False,
+        "status": None,
+        "query_hints": [],
+    }
+
+
+def _retrieval_response_meta(
+    debug_info: dict | None,
+    *,
+    chunks_used: int,
+    used_retrieval: bool,
+) -> dict:
+    """Public retrieval object for debug /ask and /agent responses."""
+    info = debug_info if isinstance(debug_info, dict) else _empty_retrieval_debug()
+    out = {
+        "chunks_used": chunks_used,
+        "used_retrieval": bool(used_retrieval),
+        "collections": list(info.get("collections") or []),
+        "global_top": list(info.get("global_top") or []),
+        "best_score": info.get("best_score"),
+        "rag_use_docs_min": info.get("rag_use_docs_min", RAG_USE_DOCS_MIN),
+        "skipped_low_confidence": bool(info.get("skipped_low_confidence")),
+        "query_hints": list(info.get("query_hints") or []),
+    }
+    if info.get("status"):
+        out["status"] = info["status"]
+    if info.get("would_have_used") is not None:
+        out["would_have_used"] = info["would_have_used"]
+    return out
+
+
+def _hint_aux_query(hint: str) -> tuple[str, list[str]]:
+    """Return (embed text, collections) for a second-pass recall on a hint."""
+    git_hints = {
+        "cherry-pick",
+        "stash",
+        "reflog",
+        "rebase",
+        "reset",
+        "checkout",
+        "switch",
+        "staged",
+        "diff",
+    }
+    if hint in git_hints:
+        if hint == "staged":
+            return "git diff --staged", ["git_docs"]
+        if hint == "cherry-pick":
+            return "git cherry-pick", ["git_docs"]
+        return f"git {hint}", ["git_docs"]
+    if hint == "xargs":
+        return "xargs run command on each line of input", ["man_pages", "bash_docs"]
+    if hint == "subshell":
+        return "bash subshell parentheses", ["bash_docs", "man_pages"]
+    return hint, list(COLLECTIONS)
+
+
+def _candidate_key(collection: str, payload: dict) -> str:
+    return "|".join(
+        [
+            collection,
+            str(payload.get("source") or ""),
+            str(payload.get("command") or ""),
+            (payload.get("text") or "")[:120],
+        ]
+    )
 
 
 def _collect_chunks(q_vec, debug=False, query: str = ""):
@@ -277,13 +495,42 @@ def _collect_chunks(q_vec, debug=False, query: str = ""):
     then keep the global top CONTEXT_TOP_N chunks by score.
     """
     candidates = []
+    seen: set[str] = set()
     any_searched = False
-    debug_info = []
+    hints = _extract_command_hints(query)
+    debug_info = _empty_retrieval_debug() if debug else None
+    if debug_info is not None:
+        debug_info["query_hints"] = hints
+
+    def _add_hit(collection: str, score: float, payload: dict) -> bool:
+        if score < MIN_SCORE:
+            return False
+        if not (payload.get("text") or "").strip():
+            return False
+        key = _candidate_key(collection, payload)
+        if key in seen:
+            return False
+        seen.add(key)
+        boosted = score + _command_boost(query, payload)
+        candidates.append(
+            {
+                "collection": collection,
+                "score": score,
+                "boosted": boosted,
+                "text": _format_hit_text(payload),
+                "command": payload.get("command"),
+                "source": payload.get("source"),
+            }
+        )
+        return True
+
     for collection in COLLECTIONS:
         try:
             if not qdrant.collection_exists(collection):
-                if debug:
-                    debug_info.append({"collection": collection, "status": "missing"})
+                if debug_info is not None:
+                    debug_info["collections"].append(
+                        {"collection": collection, "status": "missing"}
+                    )
                 continue
             any_searched = True
             response = qdrant.query_points(
@@ -297,25 +544,10 @@ def _collect_chunks(q_vec, debug=False, query: str = ""):
             for h in hits:
                 score = float(h.score) if h.score is not None else 0.0
                 raw_scores.append(score)
-                if score < MIN_SCORE:
-                    continue
-                p = h.payload or {}
-                if not (p.get("text") or "").strip():
-                    continue
-                boosted = score + _command_boost(query, p)
-                candidates.append(
-                    {
-                        "collection": collection,
-                        "score": score,
-                        "boosted": boosted,
-                        "text": _format_hit_text(p),
-                        "command": p.get("command"),
-                        "source": p.get("source"),
-                    }
-                )
-                kept += 1
-            if debug:
-                debug_info.append(
+                if _add_hit(collection, score, h.payload or {}):
+                    kept += 1
+            if debug_info is not None:
+                debug_info["collections"].append(
                     {
                         "collection": collection,
                         "hits": len(hits),
@@ -324,45 +556,59 @@ def _collect_chunks(q_vec, debug=False, query: str = ""):
                     }
                 )
         except Exception as e:
-            if debug:
-                debug_info.append(
+            if debug_info is not None:
+                debug_info["collections"].append(
                     {"collection": collection, "status": "error", "error": str(e)}
                 )
+
+    # Second-pass recall: paraphrases often miss the right page in top-k.
+    # Re-query with an explicit command string and merge (boost still applies).
+    for hint in hints[:3]:
+        aux_text, aux_collections = _hint_aux_query(hint)
+        try:
+            aux_vec = embedder.encode(aux_text).tolist()
+        except Exception:
+            continue
+        for collection in aux_collections:
+            try:
+                if not qdrant.collection_exists(collection):
+                    continue
+                any_searched = True
+                response = qdrant.query_points(
+                    collection_name=collection,
+                    query=aux_vec,
+                    limit=PER_COLLECTION_K,
+                )
+                for h in getattr(response, "points", None) or []:
+                    score = float(h.score) if h.score is not None else 0.0
+                    _add_hit(collection, score, h.payload or {})
+            except Exception:
+                continue
 
     candidates.sort(key=lambda c: c["boosted"], reverse=True)
     top = candidates[:CONTEXT_TOP_N]
     best_score = float(top[0]["score"]) if top else 0.0
     # Grounding gate: weak best-hit → treat as no usable docs.
     if top and best_score < RAG_USE_DOCS_MIN:
-        if debug:
-            debug_info.append(
-                {
-                    "skipped_low_confidence": True,
-                    "best_score": round(best_score, 4),
-                    "rag_use_docs_min": RAG_USE_DOCS_MIN,
-                    "would_have_used": len(top),
-                }
-            )
+        if debug_info is not None:
+            debug_info["skipped_low_confidence"] = True
+            debug_info["best_score"] = round(best_score, 4)
+            debug_info["would_have_used"] = len(top)
         top = []
     chunks = [c["text"] for c in top]
-    if debug:
-        debug_info.append(
+    if debug_info is not None:
+        debug_info["best_score"] = round(best_score, 4) if candidates else None
+        debug_info["global_top"] = [
             {
-                "global_top": [
-                    {
-                        "collection": c["collection"],
-                        "score": round(c["score"], 4),
-                        "boosted": round(c["boosted"], 4),
-                        "command": c.get("command"),
-                        "source": str(c.get("source") or "")[:80],
-                    }
-                    for c in top
-                ],
-                "best_score": round(best_score, 4) if candidates else None,
-                "rag_use_docs_min": RAG_USE_DOCS_MIN,
+                "collection": c["collection"],
+                "score": round(c["score"], 4),
+                "boosted": round(c["boosted"], 4),
+                "command": c.get("command"),
+                "source": str(c.get("source") or "")[:80],
             }
-        )
-    return chunks, any_searched, debug_info
+            for c in top
+        ]
+    return chunks, any_searched, debug_info or _empty_retrieval_debug()
 
 
 @app.post("/ask")
@@ -392,7 +638,8 @@ def _retrieval_context(prompt: str, debug: bool = False):
     else:
         context = ""
         if debug and not any_searched:
-            debug_info = list(debug_info) + [{"status": "collections_missing"}]
+            debug_info = dict(debug_info)
+            debug_info["status"] = "collections_missing"
     return context, len(chunks), debug_info
 
 
@@ -508,14 +755,15 @@ def agent_run(payload: AgentRunRequest):
     if not payload.base_model and use_rag:
         documentation, used, debug_info = _retrieval_context(query, debug=payload.debug)
         if payload.debug:
-            retrieval_meta = {
-                "chunks_used": used,
-                "collections": debug_info,
-                "use_retrieval": use_rag,
-                "use_retrieval_mode": (
-                    "explicit" if payload.use_retrieval is not None else "auto"
-                ),
-            }
+            retrieval_meta = _retrieval_response_meta(
+                debug_info,
+                chunks_used=used,
+                used_retrieval=bool(used),
+            )
+            retrieval_meta["use_retrieval"] = use_rag
+            retrieval_meta["use_retrieval_mode"] = (
+                "explicit" if payload.use_retrieval is not None else "auto"
+            )
 
     session = agent_sessions.get(session_id)
     if not session:
@@ -705,13 +953,16 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
             )
             full_prompt = _ask_knowledge_prompt(prompt)
             if debug:
-                debug_info = list(debug_info) + [{"status": "collections_missing"}]
+                debug_info = dict(debug_info)
+                debug_info["status"] = "collections_missing"
         else:
             # Searched but nothing strong enough — knowledge path (no "docs missing" guilt).
             context = ""
             full_prompt = _ask_knowledge_prompt(prompt)
             if debug:
-                debug_info = list(debug_info) + [{"status": "retrieval_skipped_low_or_empty"}]
+                debug_info = dict(debug_info)
+                if not debug_info.get("status"):
+                    debug_info["status"] = "retrieval_skipped_low_or_empty"
 
     # qwen3.5 (and similar) can spend the entire num_predict budget on
     # internal "thinking" and return an empty `response`. For /ask/eval we
@@ -738,12 +989,13 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
         answer = str(payload.get("thinking") or "").strip()
 
     if debug:
+        used = bool(used_retrieval) and not base_model
         return {
             "response": answer,
             "base_model": base_model,
             "context": (
                 context
-                if (not base_model and used_retrieval)
+                if used
                 else (
                     "(base model only — no retrieval)"
                     if base_model
@@ -751,11 +1003,21 @@ def _ask_core(prompt: str, debug: bool = False, base_model: bool = False):
                 )
             ),
             "prompt": full_prompt,
-            "retrieval": {
-                "chunks_used": len(chunks) if (not base_model and used_retrieval) else 0,
-                "used_retrieval": bool(used_retrieval) and not base_model,
-                "collections": debug_info if not base_model else [],
-            },
+            "retrieval": (
+                _retrieval_response_meta(
+                    debug_info,
+                    chunks_used=len(chunks) if used else 0,
+                    used_retrieval=used,
+                )
+                if not base_model
+                else {
+                    "chunks_used": 0,
+                    "used_retrieval": False,
+                    "collections": [],
+                    "global_top": [],
+                    "best_score": None,
+                }
+            ),
         }
     return {"response": answer}
 

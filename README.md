@@ -38,12 +38,16 @@ BASHER_USE_GPU=1 ./Scripts/basher.sh --start
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 ```
 
-Host Ollama (GPU) + Compose Qdrant/API — useful when the host already runs `ollama serve` on `127.0.0.1:11434` and the NVIDIA Container Toolkit is unavailable:
+Host Ollama (recommended on Fedora when `ollama serve` already uses the GPU on `127.0.0.1:11434`):
 
 ```bash
-docker compose up -d qdrant
-docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up -d --no-deps api
+BASHER_USE_HOST_OLLAMA=1 ./Scripts/basher.sh --start
+# equivalent:
+docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up -d --build qdrant
+docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up -d --build --no-deps api
 ```
+
+`BASHER_USE_HOST_OLLAMA=1` takes precedence over `BASHER_USE_GPU`.
 
 Stop / tear down:
 
@@ -71,7 +75,8 @@ Copy `.env.example` → `.env`. Important keys:
 | `OLLAMA_MODEL` | Chat/agent model (default `qwen3.5:4b`) |
 | `OLLAMA_NUM_CTX` | Context window (default `12288`) |
 | `UID` / `GID` | API container user (eval results writable on host) |
-| `BASHER_USE_GPU` | Set `1` when using `./Scripts/basher.sh --start` with GPU overlay |
+| `BASHER_USE_GPU` | Set `1` for compose NVIDIA overlay (compose Ollama) |
+| `BASHER_USE_HOST_OLLAMA` | Set `1` to use host Ollama + host-network API (preferred on Fedora) |
 | `BASHER_API_URL` | CLI API base (default `http://localhost:8000`) |
 
 Retrieval knobs (`RAG_*`) are documented in `.env.example`.
@@ -110,11 +115,11 @@ alias basher='/path/to/Basher/Scripts/basher.sh'
 
 basher how do I enable automatic updates on Fedora
 BASHER_DEBUG=1 basher explain bash arrays
-basher --agent "what kernel am I on?"   # one-shot; tool approval is in Electron
+basher --agent "what kernel am I on?"   # one-shot; exit 3 if tools proposed (use Electron)
 basher --status
 ```
 
-Exit codes: `0` success, `1` usage/API error, `2` API unreachable, `130` interrupted.
+Exit codes: `0` success, `1` usage/API error, `2` API unreachable, `3` agent proposed tools (not executed), `130` interrupted.
 
 ---
 

@@ -1,8 +1,12 @@
 # Run API on the host network so it can use a host Ollama that listens
 # only on 127.0.0.1 (common Fedora systemd install) and host-mapped Qdrant.
 #
-# Usage (Qdrant already up; do NOT start the compose ollama service):
-#   docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up -d api
+# Preferred:
+#   BASHER_USE_HOST_OLLAMA=1 ./Scripts/basher.sh --start
+#
+# Manual (do NOT start the compose ollama service):
+#   docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up -d qdrant
+#   docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up -d --no-deps api
 #
 # Eval / agent then hit host GPU Ollama at 127.0.0.1:11434.
 
