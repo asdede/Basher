@@ -1,0 +1,22 @@
+# Run API on the host network so it can use a host Ollama that listens
+# only on 127.0.0.1 (common Fedora systemd install) and host-mapped Qdrant.
+#
+# Usage (Qdrant already up; do NOT start the compose ollama service):
+#   docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up -d api
+#
+# Eval / agent then hit host GPU Ollama at 127.0.0.1:11434.
+
+services:
+  api:
+    network_mode: host
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:4b}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-12288}
+      OLLAMA_URL: http://127.0.0.1:11434/api/generate
+      OLLAMA_CHAT_URL: http://127.0.0.1:11434/api/chat
+      QDRANT_URL: http://127.0.0.1:6333
+      DOCPAGES_CONFIG: /app/config/docPages.json
+    # host network: published ports in the base file are ignored
+    depends_on:
+      qdrant:
+        condition: service_started

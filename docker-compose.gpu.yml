@@ -1,0 +1,21 @@
+# Optional NVIDIA GPU overlay for the Ollama service.
+#
+# Default `docker-compose.yml` runs without a GPU reservation (CPU works;
+# host Ollama can still use a GPU outside Compose).
+#
+# Enable GPU in Compose:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#   # or:
+#   BASHER_USE_GPU=1 ./Scripts/basher.sh --start
+#
+# Requires: NVIDIA driver + nvidia-container-toolkit on the host.
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

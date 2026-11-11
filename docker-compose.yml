@@ -16,13 +16,9 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # No GPU reservation here — works on CPU-only hosts.
+    # For NVIDIA in Compose, also load docker-compose.gpu.yml
+    # (see README or BASHER_USE_GPU=1 ./Scripts/basher.sh --start).
 
   qdrant:
     build:
