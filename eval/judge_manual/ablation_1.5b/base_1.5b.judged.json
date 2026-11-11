@@ -1,0 +1,2138 @@
+{
+  "run_meta": {
+    "dataset": "/home/masterbates/code/school/Basher/eval/dataset.json",
+    "api_url": "http://localhost:8000",
+    "dry_run": false,
+    "base_model": true,
+    "mode": "base",
+    "model": "qwen2.5:1.5b",
+    "num_ctx": 12288,
+    "started_at": "2026-11-11T16:02:47.641803+00:00",
+    "judge": "composer",
+    "judge_note": "qwen2.5:1.5b ablation after RAG fix (softer prompt, stricter retrieval, low-score skip).",
+    "judged_at": "2026-11-11T16:11:45.511355+00:00"
+  },
+  "results": [
+    {
+      "id": "fedora-dnf-update",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "How do I update all packages on Fedora?",
+      "review_type": "auto",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": null,
+      "response": "To update all installed packages in Fedora, use the following command:\n\n```bash\nsudo dnf update -y\n```\n\nThis will automatically upgrade your system to the latest available versions of all installed packages.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "Clean sudo dnf update -y.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "fedora-install-package",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "How do I install a package on Fedora?",
+      "review_type": "auto",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": null,
+      "response": "To install a package on Fedora, use the following command:\n\n```bash\nsudo dnf install <package-name>\n```\n\nReplace `<package-name>` with the name of the package you want to install. For example, if you want to install `vim`, run:\n\n```bash\nsudo dnf install vim\n```",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "sudo dnf install correct.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "fedora-search-package",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "How do I search for a package on Fedora?",
+      "review_type": "auto",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": null,
+      "response": "To search for a package in Fedora, you can use the following command:\n\n```bash\ndnf search <package_name>\n```\n\nReplace `<package_name>` with the name of the package you're looking for. For example, if you want to find information about the `vim` editor, run:\n\n```bash\ndnf search vim\n```\n\nThis will display packages that contain or provide the specified term.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "dnf search correct.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "fedora-remove-package",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "How do I remove a package on Fedora?",
+      "review_type": "auto",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": null,
+      "response": "To remove a package in Fedora, you can use the following command:\n\n```bash\nsudo dnf remove <package-name>\n```\n\nReplace `<package-name>` with the name of the package you want to uninstall. For example, if you want to remove the `vim` editor, you would run:\n\n```bash\nsudo dnf remove vim\n```\n\nThis will prompt you for your password and then remove the specified package from your system.\n\nIf you also want to delete any configuration files associated with the package, add the `-y` flag (yes) to automatically answer \"yes\" to all prompts:\n\n```bash\nsudo dnf remove -y <package-name>\n```\n\nThis will ensure that no manual confirmation is needed.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "sudo dnf remove correct.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "no-hallucination-command",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "What exact command do I use to show Fedora version?",
+      "review_type": "auto",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": "If auto-pass, human can still check: command must be real (e.g. /etc/fedora-release or hostnamectl or similar from docs).",
+      "response": "To display the exact version of Fedora you are using, you can run:\n\n```bash\ncat /etc/fedora-release\n```\n\nThis will output something like:\n```\nFedora release 34 (Thirty Four)\n```\n\nIf you want a more detailed version string that includes package information and other details, you can use:\n\n```bash\ncat /etc/os-release\n```\n\nThis command provides a comprehensive overview of the installed system.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "cat /etc/fedora-release correct (auto FN on 'ver').",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "fedora-selinux-brief",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "In one sentence, what is SELinux on Fedora?",
+      "review_type": "human",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": "Answer should be concise, correct, and grounded in Fedora docs. No long copy-paste from docs.",
+      "response": "SELinux in Fedora is a mandatory access control (MAC) security module that enforces strict security policies for system resources.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "Concise MAC description.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "fedora-trap-ubuntu",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "How do I install packages on Fedora? Use the same command I use on Ubuntu.",
+      "review_type": "auto",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": "Hallucination test: must not suggest apt on Fedora.",
+      "response": "To install packages in Fedora, you can use the following command:\n\n```bash\nsudo dnf install <package_name>\n```\n\nFor example, to install the `vim` editor:\n\n```bash\nsudo dnf install vim\n```\n\nThis will install the specified package or set of packages on your system.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "Uses dnf only; ignores Ubuntu apt request appropriately.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "fedora-dnf-vs-yum",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "Should I use yum or dnf on modern Fedora?",
+      "review_type": "human",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": "Answer should reflect Fedora docs: dnf is the default; yum may be a symlink. No confident wrong answer.",
+      "response": "For modern Fedora, it's recommended to use `dnf` instead of `yum`. `dnf` is the default package manager in Fedora 34 and later. It has several improvements over `yum`, including better performance, more features, and a cleaner user interface.\n\nHere’s an example of how you can upgrade packages using `dnf`:\n\n```bash\nsudo dnf update\n```\n\nThis command will update all installed packages on your system to their latest versions available in the repositories.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "Prefer dnf.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "fedora-repo-list",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "How do I list enabled repositories on Fedora?",
+      "review_type": "auto",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": null,
+      "response": "To list the enabled repositories in your Fedora system, you can use the following command:\n\n```bash\ndnf repolist --enabled\n```\n\nThis will display a list of repositories that are currently enabled and available for installation.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "dnf repolist --enabled.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "fedora-clean-cache",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "How do I clean dnf cache to free disk space?",
+      "review_type": "auto",
+      "expected_collections": [
+        "fedora_quick_docs"
+      ],
+      "human_rubric": null,
+      "response": "To clear the DNF package cache and free up disk space, you can use the following command:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories, and other data from your system. After running this command, you may need to restart your terminal or log out and back in for changes to take effect.\n\nIf you want to verify that the cache has been cleared, you can check the size of the DNF cache:\n\n```bash\nsudo dnf clean all\n```\n\nThis will remove cached packages, repositories",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "dnf clean all.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-vs-podman",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "Should I use Docker or Podman on Fedora?",
+      "review_type": "human",
+      "expected_collections": [
+        "fedora_quick_docs",
+        "docker_docs"
+      ],
+      "human_rubric": "Answer should reflect Fedora/Podman stance if in docs. Helpfulness and appropriateness for a Fedora user.",
+      "response": "Docker and Podman are both containerization tools, but they have different origins and support for various Linux distributions.\n\n- **Docker** is maintained by the Docker Inc. It's widely used in the community and has a large ecosystem of plugins that work with it.\n- **Podman** was developed by Red Hat as an alternative to Docker. It supports more Linux distributions, including Fedora, and aims to be simpler and more lightweight.\n\nFor Fedora, Podman is recommended because:\n\n```bash\n# Install Podman\nsudo dnf install podman\n\n# Verify installation\npodman --version\n```\n\nIf you're looking for a simple, lightweight alternative that might work better with your existing setup or if you prefer the Red Hat-developed tool, Docker would be fine too. However, Podman is generally considered more stable and easier to use on Fedora.\n\nRemember, both tools can run in containers within their own container, so they are not mutually exclusive.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 4,
+      "score_relevance": 4,
+      "score_context_usage": null,
+      "score_correctness": 4,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 4,
+        "grounding": 3,
+        "helpfulness": 4,
+        "reason": "Reasonable Docker vs Podman; light Fedora bias.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "out-of-scope-polite",
+      "section_id": "fedora",
+      "section_label": "Fedora-based",
+      "query": "What is the capital of France?",
+      "review_type": "human",
+      "expected_collections": null,
+      "human_rubric": "Model should decline or redirect politely (terminal/Fedora assistant scope). No confident wrong answer.",
+      "response": "The capital of France is Paris.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 1,
+      "score_relevance": 1,
+      "score_context_usage": null,
+      "score_correctness": 1,
+      "llm_judge": {
+        "pass": false,
+        "correctness": 1,
+        "grounding": 1,
+        "helpfulness": 1,
+        "reason": "Answers Paris instead of declining.",
+        "judge": "composer"
+      },
+      "judge_pass": false
+    },
+    {
+      "id": "git-status",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I check the status of my git repository?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": null,
+      "response": "To check the status of your Git repository, you can use the following command:\n\n```bash\ngit status\n```\n\nThis will show you a summary of changes in your working directory and staging area. If there are any untracked files or staged but unstaged changes, it will indicate them as well.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "git status.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-add-commit",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I add all files and commit in git?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": null,
+      "response": "To add all files to the staging area and then commit them, you can use the following commands:\n\n```bash\n# Add all files to the staging area\ngit add .\n\n# Commit with a message\ngit commit -m \"Your commit message\"\n```\n\nThis will stage all changes in your working directory and create an initial commit.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "add + commit.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-log-oneline",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I show a short one-line log of commits?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": null,
+      "response": "You can use the following command to display a short log of commits:\n\n```bash\ngit log --oneline\n```\n\nThis will give you a quick summary of each commit, showing just the first line.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "log --oneline.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-branch-create",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I create a new branch in git?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": null,
+      "response": "To create a new branch in Git, you can use the following command:\n\n```bash\ngit checkout -b <branch-name>\n```\n\nReplace `<branch-name>` with the name of your desired branch. This will create and switch to a new branch.\n\nExample:\n```bash\ngit checkout -b my-feature-branch\n```\n\nThis command creates a new branch named `my-feature-branch` and switches you to it.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "checkout -b clean.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-diff-staged",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I see what I staged for commit?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": null,
+      "response": "You can view the changes you've staged using the following command:\n\n```bash\ngit status\n```\n\nThis will show you a summary of your working directory and staging area, indicating which files have been modified but not committed yet. If you want to see detailed information about what has been staged, including the differences between the index (staging area) and the last commit, use:\n\n```bash\ngit diff --cached\n```\n\nThis command will display the changes that are currently in your staging area relative to the previous commit.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 3,
+      "score_relevance": 3,
+      "score_context_usage": null,
+      "score_correctness": 3,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 3,
+        "grounding": 2,
+        "helpfulness": 3,
+        "reason": "Mentions status; implies git diff for staged detail but truncated/weak --staged.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-undo-last-commit",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I undo my last commit but keep the changes?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": "Should suggest git reset --soft HEAD~1 or equivalent; must not suggest non-existent 'git undo'.",
+      "response": "To undo your last commit while keeping the changes, you can use the following steps:\n\n1. First, switch to the branch where you made the commit:\n   ```bash\n   git checkout <branch-name>\n   ```\n\n2. Then, revert the commit that was just committed:\n   ```bash\n   git reset --soft HEAD~1\n   ```\n   This will undo the last commit but keep all your changes in the working directory.\n\n3. Finally, add and commit the changes again to reflect them as if they were part of a new commit.\n   ```bash\n   git add .\n   git commit -m \"Revert previous commit\"\n   ```\n\n4. Push the updated branch to remote:\n   ```bash\n   git push <remote-name> <branch-name>\n   ```\n   \nRemember, this will revert your last commit but keep all changes in your working directory and index until you add them again.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_score": 4,
+      "score_relevance": 4,
+      "score_context_usage": null,
+      "score_correctness": 4,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 4,
+        "grounding": 3,
+        "helpfulness": 4,
+        "reason": "git reset --soft HEAD~1 present amid extra checkout noise; auto FN on 'undo' word.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-reflog",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "I reset and lost a commit. How do I find the lost commit hash?",
+      "review_type": "human",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": "Should mention reflog. Answer must be from docs; no made-up commands.",
+      "response": "To recover a lost commit, you can use the following steps:\n\n1. **Find the Commit Hash**: First, identify which commit is missing by examining your local history.\n\n```bash\ngit log --oneline\n```\n\nThis will list all commits with their hashes and messages in reverse chronological order. Look for the hash of the commit that was lost.\n\n2. **Revert to a Known Good Commit**:\n   - If you know the exact commit hash, you can revert your repository to that point.\n   \n```bash\ngit checkout <commit-hash>\n```\n\n- Alternatively, if you have a specific branch or tag where you want to restore, use:\n\n```bash\ngit checkout <branch-name> -- .\n```\nor\n\n```bash\ngit checkout <tag-name> -- .\n```\n\n3. **Revert to the Previous Commit**:\n   - If you don't know the exact commit hash but remember a previous commit that was good, revert your repository to that point.\n\n```bash\ngit reset --hard <commit-hash>\n```\n\n4. **Revert to a Specific Point in Time**:\n   - You can also revert to any specific commit by specifying the date or time:\n\n```bash\ngit checkout <date-or-time> -- .\n```\n\n5. **Check for Untracked Files**: Sometimes, lost commits might be due to untracked files being deleted. Check your `.git` directory and ensure that all necessary files are tracked.\n\nIf you're still unable to find the commit hash or revert it successfully, consider using a more advanced method like `git reflog` which logs every change in the repository:\n\n```bash\ngit reflog\n```\n\nThis command will show you all changes made since your last checkout. You can then use this information to identify and recover lost commits.\n\nRemember that recovering from a lost commit is not always possible, especially if the commit was deleted or overwritten by subsequent commits.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 3,
+      "score_relevance": 3,
+      "score_context_usage": null,
+      "score_correctness": 3,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 3,
+        "grounding": 2,
+        "helpfulness": 3,
+        "reason": "Eventually mentions git reflog after wrong log-first path.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-rebase-vs-merge",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "What is the difference between git merge and git rebase?",
+      "review_type": "human",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": "Accurate, doc-grounded. Check for hallucination (e.g. wrong semantics).",
+      "response": "Git merge and Git rebase are both commands used for integrating changes from one branch into another, but they do so in different ways:\n\n1. **Merge**:\n   - Merges a branch's commits into the current branch.\n   - Keeps the history linear by combining commit messages and author information.\n   - Does not rewrite the history of the original branch.\n\nExample bash command for merge:\n```bash\ngit checkout <target_branch>\ngit merge <source_branch>\n```\n\n2. **Rebase**:\n   - Rewrites the commits on a branch to make them appear as if they were cherry-picked from another branch.\n   - Keeps the commit history linear but changes the order of commits and merges conflicts into one commit.\n   - Can rewrite the history of the original branch.\n\nExample bash command for rebase:\n```bash\ngit checkout <target_branch>\ngit rebase <source_branch>\n```\n\nIn summary, merge is simpler and preserves the original commit history, while rebase offers more control over the commit order but can alter the history.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 3,
+      "score_relevance": 3,
+      "score_context_usage": null,
+      "score_correctness": 3,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 3,
+        "grounding": 2,
+        "helpfulness": 3,
+        "reason": "Partial; merge description inaccurate ('keeps history linear').",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-cherry-pick",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I apply a single commit from another branch onto my current branch?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": null,
+      "response": "To apply a single commit from another branch to your current branch in Fedora, you can use the `git cherry-pick` command. Here’s how you can do it:\n\n```bash\n# Switch to the branch where the commit is located (e.g., 'feature-branch')\ncd feature-branch\n\n# Cherry pick the specific commit you want from the other branch\ngit checkout -b temp-feature-branch origin/other-branch\ngit cherry-pick <commit-hash>\n```\n\nReplace `<commit-hash>` with the actual hash of the commit you want to apply. This command will create a new temporary branch (`temp-feature-branch`) that contains only the changes from the specified commit, and then it applies those changes directly onto your current branch.\n\nAfter running this command, you can merge or push the changes as needed:\n\n```bash\n# Merge the temp feature branch into your main branch (e.g., 'master')\ngit checkout master\ngit merge temp-feature-branch\n\n# Or if you want to keep them separate:\ngit checkout -b new-feature-branch origin/other-branch\ngit cherry-pick <commit-hash>\n```\n\nRemember, this will overwrite any changes in the original commit on `origin/other-branch`, so be careful with the commit hash.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 3,
+      "score_relevance": 3,
+      "score_context_usage": null,
+      "score_correctness": 3,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 3,
+        "grounding": 2,
+        "helpfulness": 3,
+        "reason": "Mentions cherry-pick but surrounds with confusing cd/checkout steps.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-stash",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I temporarily save my uncommitted changes and switch branch?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": null,
+      "response": "To save your uncommitted changes and switch branches in Fedora, you can use the following steps:\n\n1. Save your changes:\n   ```bash\n   git add .\n   ```\n\n2. Switch to a different branch:\n   ```bash\n   git checkout <new-branch-name>\n   ```\n\n3. If you want to save your changes without committing them temporarily, you can stash them using:\n   ```bash\n   git stash\n   ```\n   This will save the changes in a temporary location and allow you to switch branches or perform other tasks.\n\n4. To restore your stashed changes later, use:\n   ```bash\n   git stash pop\n   ```\n\n5. If you want to discard all untracked files without committing them temporarily, you can do so by running:\n   ```bash\n   git clean -fd\n   ```\n   This command will remove all untracked files and directories from the working directory.\n\nRemember that these commands are specific to Git on Fedora Linux. If you're using a different version of Git or a different operating system, the commands might be slightly different.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 4,
+      "score_relevance": 4,
+      "score_context_usage": null,
+      "score_correctness": 4,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 4,
+        "grounding": 3,
+        "helpfulness": 4,
+        "reason": "Includes git stash / stash pop; order with add/checkout messy.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-hallucination-fake-cmd",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "What is the command to sync my branch with remote? I think it's git sync.",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": "Hallucination test: 'git sync' does not exist; model should suggest pull/fetch+merge or similar.",
+      "response": "The command you're looking for is:\n\n```bash\ngit pull origin <branch_name>\n```\n\nThis will fetch the latest changes from the remote repository and merge them into your local branch.\n\nIf you want to push your local changes back to the remote, you can use:\n\n```bash\ngit push origin <branch_name>\n```\n\nRemember that `origin` is typically the name of the default remote tracking branch. If you have multiple remotes or a custom one, replace it with the appropriate name.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "pull/push; no git sync.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "git-remote-add",
+      "section_id": "git",
+      "section_label": "Git",
+      "query": "How do I add a remote called origin pointing to a URL?",
+      "review_type": "auto",
+      "expected_collections": [
+        "git_docs"
+      ],
+      "human_rubric": null,
+      "response": "To add a remote named \"origin\" in your local repository and point it to a URL, you can use the following command:\n\n```bash\ngit remote add origin <URL>\n```\n\nReplace `<URL>` with the actual URL of the remote repository. For example:\n\n```bash\ngit remote add origin https://github.com/username/repository.git\n```\n\nThis will create an \"origin\" remote and set it to point to the specified GitHub repository.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "remote add origin.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-loop-files",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "How do I loop over all .txt files in a directory in bash?",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": null,
+      "response": "To loop over all `.txt` files in a directory using Bash, you can use the following command:\n\n```bash\nfor file in *.txt; do echo \"Processing $file\"; done\n```\n\nThis script will iterate through each `.txt` file in the current directory and print a message indicating that it is processing each one.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "for *.txt loop.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-array-syntax",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "What is the syntax for bash arrays?",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": null,
+      "response": "In Bash, you can define an array using square brackets and commas to separate elements:\n\n```bash\nmy_array=(element1 element2 element3)\n```\n\nTo access or modify an element in the array, use its index (starting from 0):\n\n```bash\necho ${my_array[0]} # Outputs \"element1\"\nmy_array[0]=\"new_element\" # Modifies the first element to \"new_element\"\n```\n\nRemember that arrays are indexed starting at 0.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "arr=(...) syntax.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-conditional",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "How do I check if a file exists in a bash script?",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs",
+        "man_pages"
+      ],
+      "human_rubric": null,
+      "response": "You can check if a file exists in a Bash script by using the `-f` or `-e` options with the `test` command, which is part of the POSIX standard. Here's how you can do it:\n\n```bash\nif [ -f \"$file\" ]; then\n    echo \"File exists.\"\nelse\n    echo \"File does not exist.\"\nfi\n```\n\nOr using `-e` (exists) option:\n\n```bash\nif [ -e \"$file\" ]; then\n    echo \"File exists.\"\nelse\n    echo \"File does not exist.\"\nfi\n```\n\nBoth commands check if the file `$file` exists and are commonly used in Bash scripts.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "[ -f / -e ].",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-echo-variable",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "How do I print the value of a variable in bash?",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": null,
+      "response": "You can print the value of a variable in Bash by using the `$` symbol followed by the name of the variable, like this:\n\n```bash\necho $MY_VARIABLE\n```\n\nReplace `MY_VARIABLE` with the actual name of your variable. For example:\n\n```bash\necho $USER  # This will output the username\necho $HOME   # This will output the home directory path\n```",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "echo $VAR.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-read-input",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "How do I read user input into a variable in bash?",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": null,
+      "response": "You can read user input into a variable using the `read` command followed by the name of the variable you want to assign the input to. Here's an example:\n\n```bash\n#!/bin/bash\n\n# Prompt the user for input and store it in the variable $name\nread -p \"Please enter your name: \" name\n\necho \"Hello, $name!\"\n```\n\nIn this script:\n- `read` is used to read a line of text from standard input (usually the keyboard).\n- `-p` option tells `read` what message to display before asking for user input.\n- The variable `$name` will hold whatever the user types after pressing Enter.\n\nWhen you run this script, it will prompt you to enter your name and then print \"Hello, [Your Name]!\"",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "read -p.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-vs-man",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "What is the difference between [ and [[ in bash?",
+      "review_type": "human",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": "Answer should be accurate ([[ is bash keyword, [ is command). Check that it uses documentation and does not hallucinate.",
+      "response": "In Bash, `[` and `[[` are both used for command substitution, but they have some differences:\n\n- **[**:\n  - This is a regular shell command that checks if a string matches a pattern.\n  - It returns true (0) if the pattern matches any part of the input.\n  - Example: \n    ```bash\n    [ \"$variable\" = \"value\" ] && echo \"Matched\"\n    ```\n  - Note: `[` is deprecated and should be replaced with `[[ ]]`.\n\n- **[[**:\n  - This is a more powerful command substitution that supports extended regular expressions (ERE).\n  - It checks if the string matches an ERE pattern.\n  - Example:\n    ```bash\n    [[ \"$variable\" =~ \"pattern\" ]] && echo \"Matched\"\n    ```\n  - Note: `[[ ... ]]` syntax is preferred for modern Bash versions.\n\nIn summary, `[` is simpler and less powerful than `[[ ]]`, which supports more advanced regex patterns.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 2,
+      "score_relevance": 2,
+      "score_context_usage": null,
+      "score_correctness": 2,
+      "llm_judge": {
+        "pass": false,
+        "correctness": 2,
+        "grounding": 1,
+        "helpfulness": 2,
+        "reason": "Calls both command substitution; claims [ deprecated — wrong.",
+        "judge": "composer"
+      },
+      "judge_pass": false
+    },
+    {
+      "id": "explain-pipe",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "Explain what a pipe does in bash and give one example.",
+      "review_type": "human",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": "Clarity, correctness of explanation, and relevance of example. Response should use docs when explaining.",
+      "response": "In Bash, a pipe is used to send the output of one command directly into another command as input. This allows you to chain commands together where each outputs data that's immediately consumed by the next command.\n\nHere’s an example:\n\n```bash\nls -l | grep \"file1\"\n```\n\nThis command will list all files (`ls -l`) and then filter out only those that contain the string `\"file1\"` (`grep \"file1\"`). The output of `ls` (the file names) is piped into `grep`, which processes each line to find matches.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "Pipe + example OK.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-quoting",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "When should I use double quotes vs single quotes in bash?",
+      "review_type": "human",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": "Correctness (variable expansion in double, literal in single). Grounded in documentation.",
+      "response": "When writing shell scripts or command-line arguments, you can choose between using single quotes (`'`) and double quotes (`\"`) based on your needs:\n\n- **Single Quotes (`'`)**:\n  - Use single quotes to prevent variable expansion.\n  - Use single quotes when you want to preserve the literal value of a character that might have special meaning in shell syntax, such as `$`, `#`, or `\\`.\n  ```bash\n  echo 'Hello World'\n  # Output: Hello World\n\n  echo \"Hello World\"\n  # Output: Hello World\n  ```\n\n- **Double Quotes (`\" \"`)**:\n  - Use double quotes to allow variable expansion.\n  - Use double quotes when you want the shell to expand variables, perform arithmetic expansions, or include special characters literally without escaping them.\n  ```bash\n  echo \"Hello $USER\"\n  # Output: Hello USER\n\n  echo 'Hello $USER'\n  # Error: hello $user is not a valid identifier\n  ```\n\n**Summary**: Use single quotes when you want to keep the literal value of variables or special characters, and double quotes for variable expansion and other shell syntax.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 4,
+      "score_relevance": 4,
+      "score_context_usage": null,
+      "score_correctness": 4,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 4,
+        "grounding": 3,
+        "helpfulness": 4,
+        "reason": "Single vs double mostly right; one example comment wrong.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "rag-context-use",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "What does set -e do in a bash script?",
+      "review_type": "human",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": "RAG check: answer should reflect retrieved documentation (exit on error). Note if answer seems to come from context vs generic knowledge.",
+      "response": "The `-e` option in Bash is used to enable \"errexit\". When this option is enabled, the shell will exit immediately after encountering an error command. This means that if any command within your script fails (returns a non-zero exit status), the entire script will terminate.\n\nHere's a simple example of how you might use `-e`:\n\n```bash\n#!/bin/bash\n\n# Set -e to enable errexit\nset -e\n\n# A failing command\necho \"This is an error message\"\n```\n\nIn this script, if `echo` fails (returns a non-zero exit status), the script will immediately terminate.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "set -e errexit clear.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-set-u",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "What does set -u do in bash?",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": null,
+      "response": "In Bash, the `-u` option is used with the `set` command to enable unset variable checking. This means that if a script attempts to use an uninitialized variable, it will cause an error rather than silently failing.\n\nHere's a simple example of how you might see this in action:\n\n```bash\n#!/bin/bash\n\n# Set -u enables unset variable checking\nset -u\n\n# Initialize some variables\nvar1=\"value1\"\nvar2=\"value2\"\n\n# This line would normally work, but it will cause an error if var3 is not set\necho \"This should print: $var1 and $var2\" && echo \"But this won't because of unset var3\"\n\n# Uncomment the following line to see what happens when var3 is not set\n# unset var3\n\n```\n\nWhen you run this script, it will output:\n\n```\nThis should print: value1 and value2\nBut this won't because of unset var3\n```\n\nHowever, if `var3` were not initialized before the line that tries to use it, Bash would report an error like:\n\n```bash\nbash: var3: unbound variable\n```\n\nThis is useful for catching uninitialized variables early in a script and preventing runtime errors.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "nounset clear.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "bash-subshell",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "How do I run a command in a subshell in bash?",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": null,
+      "response": "You can run a command in a subshell by prefixing it with `$`. For example:\n\n```bash\n$ echo \"Hello, Subshell!\"\n```\n\nThis will output:\n```\nHello, Subshell!\n```\n\nAlternatively, you can use parentheses to create a subshell:\n\n```bash\necho $(echo \"Hello, Subshell!\")\n```\n\nBoth commands will produce the same result.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 2,
+      "score_relevance": 2,
+      "score_context_usage": null,
+      "score_correctness": 2,
+      "llm_judge": {
+        "pass": false,
+        "correctness": 2,
+        "grounding": 1,
+        "helpfulness": 2,
+        "reason": "Claims $ prefix is subshell; parentheses example is command substitution not clear subshell demo.",
+        "judge": "composer"
+      },
+      "judge_pass": false
+    },
+    {
+      "id": "bash-trap-hallucination",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "How do I catch errors in bash? I heard there is try/catch.",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs"
+      ],
+      "human_rubric": "Hallucination test: bash has no try/catch; should suggest trap or set -e.",
+      "response": "In Bash, you can use the `set -e` command to enable error handling where a script exits immediately if any command fails.\n\n```bash\nset -e\n```\n\nThis will stop execution of the script as soon as one command fails and print an error message indicating which line failed.\n\nAlternatively, you can also catch errors using `trap`:\n\n```bash\ntrap 'echo \"An error occurred\"; exit' ERR\n\n# Later in your script:\ncommand_that_might_fail\n```\n\nIf you want to handle specific types of errors (like syntax errors), you can use the `-o pipefail` option with `set -e`.\n\n```bash\nset -eo pipefail\n```\n\nThis will print an error message if a command fails at any point in a pipeline.\n\nRemember, these features are part of Bash's built-in shell scripting capabilities and do not involve using try/catch statements from other programming languages.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_score": 4,
+      "score_relevance": 4,
+      "score_context_usage": null,
+      "score_correctness": 4,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 4,
+        "grounding": 3,
+        "helpfulness": 4,
+        "reason": "set -e + trap ERR; explicitly rejects try/catch (auto FN).",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "multi-source",
+      "section_id": "bash",
+      "section_label": "Bash",
+      "query": "I want to write a bash script that runs dnf update and then runs a docker build. How?",
+      "review_type": "human",
+      "expected_collections": [
+        "fedora_quick_docs",
+        "bash_docs",
+        "docker_docs"
+      ],
+      "human_rubric": "Answer should combine Fedora (dnf), bash (script), and Docker (build) correctly. Check retrieval used multiple collections.",
+      "response": "To create a Bash script that first updates your system using `dnf` and then builds a Docker image, you can follow these steps:\n\n1. Create or edit the script file.\n2. Add commands to update the package list with `dnf update`.\n3. Add commands to build the Docker image.\n\nHere's an example of how you could structure this in a Bash script named `update_and_build.sh`:\n\n```bash\n#!/bin/bash\n\n# Update system packages using dnf\necho \"Updating system...\"\nsudo dnf update -y\n\n# Build Docker image (replace 'your-image-name' with your actual Docker image name)\necho \"Building Docker image...\"\ndocker build -t your-image-name .\n\n# Optionally, you can run a specific command after building the image if needed\necho \"Running additional commands on successful build...\"\n```\n\n### Explanation:\n- `sudo dnf update -y`: This updates all installed packages without prompting for confirmation.\n- `docker build -t your-image-name .`: This builds an image named `your-image-name` from the current directory. The dot (`.`) means to use the current directory as the context, which is typically where Dockerfile resides.\n\n### Running the Script:\n1. Save the script in a file (e.g., `update_and_build.sh`).\n2. Make it executable: `chmod +x update_and_build.sh`.\n3. Run the script: `./update_and_build.sh`.\n\nThis will first update your system packages and then build a Docker image named `your-image-name`. You can replace `your-image-name` with any name you prefer for your Docker image.\n\n### Example Output:\n```bash\nUpdating system...\nBuilding Docker image...\n```\n\nRemember to replace the placeholder names (`your-image-name`) with actual values that fit your needs.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "dnf update then docker build script.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "grep-basic",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "How do I search for a string in a file using the command line?",
+      "review_type": "auto",
+      "expected_collections": [
+        "man_pages",
+        "bash_docs"
+      ],
+      "human_rubric": null,
+      "response": "To search for a specific string within a file, you can use the `grep` command. Here’s how you can do it:\n\n```bash\ngrep \"your_string\" your_file.txt\n```\n\nReplace `\"your_string\"` with the exact string you're looking for and `your_file.txt` with the name of the file where you want to search.\n\nFor example, if you want to find all occurrences of the word \"example\" in a file named `example.txt`, you would run:\n\n```bash\ngrep \"example\" example.txt\n```\n\nThis command will output lines containing that string.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "grep string file clean.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "man-page-exists",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "How do I read the manual for the ls command?",
+      "review_type": "auto",
+      "expected_collections": [
+        "man_pages"
+      ],
+      "human_rubric": null,
+      "response": "To read the manual for the `ls` command, you can use the following commands:\n\n```bash\nman ls\n```\n\nThis will open the manual page for the `ls` command in your default text viewer.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "man ls.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "linux-find-name",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "How do I find files by name in the current directory and below?",
+      "review_type": "auto",
+      "expected_collections": [
+        "man_pages"
+      ],
+      "human_rubric": null,
+      "response": "You can use the `find` command to search for files by name within the current directory and its subdirectories. Here's a basic example:\n\n```bash\nfind . -name \"filename\"\n```\n\nReplace `\"filename\"` with the exact name of the file you're looking for.\n\nFor example, if you want to find all `.txt` files in the current directory and below:\n\n```bash\nfind . -name \"*.txt\"\n```\n\nThis command will list all `.txt` files found within the current directory and its subdirectories.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "find . -name.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "linux-chmod",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "How do I make a script executable with chmod?",
+      "review_type": "auto",
+      "expected_collections": [
+        "man_pages"
+      ],
+      "human_rubric": null,
+      "response": "To make a script executable in Fedora, you can use the `chmod` command to change its permissions and then run it using the shebang line.\n\nHere’s how:\n\n1. **Make the script executable**:\n   ```bash\n   chmod +x /path/to/your/script.sh\n   ```\n\n2. **Run the script**:\n   You can now execute your script by simply running it with a shell, like this:\n   ```bash\n   ./script.sh\n   ```\n\n### Example\n\nLet's say you have a script named `my_script` located in `/home/user/scripts/`.\n\n1. Make the script executable:\n\n```bash\nchmod +x /home/user/scripts/my_script\n```\n\n2. Run the script:\n\n```bash\n/home/user/scripts/my_script\n```\n\nThis will execute your script and run its commands.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "chmod +x.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "linux-kill-signal",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "How do I kill a process by PID? What signal does kill send by default?",
+      "review_type": "human",
+      "expected_collections": [
+        "man_pages"
+      ],
+      "human_rubric": "Should mention kill PID and SIGTERM (15) as default. No hallucinated signal names.",
+      "response": "To kill a process by its PID, you can use the `kill` command followed by the PID and an optional signal:\n\n```bash\nkill <PID>\n```\n\nFor example, to kill a process with PID 12345:\n\n```bash\nkill 12345\n```\n\nBy default, the `kill` command sends a `TERM` (terminate) signal. If you want to send a different signal, you can specify it after the PID:\n\n```bash\nkill -9 <PID>\n```\n\nThis will send a `KILL` signal instead.\n\nRemember that sending signals can be dangerous if not done carefully, as they may cause processes to crash or lose data. Always ensure you have the necessary permissions and understand what effect your actions might have on other systems or applications.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "kill; default TERM.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "linux-xargs-basic",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "How do I run a command on each line of input?",
+      "review_type": "auto",
+      "expected_collections": [
+        "man_pages",
+        "bash_docs"
+      ],
+      "human_rubric": null,
+      "response": "You can use the `xargs` command to run a command on each line of input. Here's an example:\n\n```bash\necho \"command1\" | xargs -n 1 command2\n```\n\nIn this example, `command1` is piped into `xargs`, which processes each line and runs `command2`. The `-n 1` option ensures that only one argument (the input line) is passed to `command2`.\n\nIf you want to run multiple commands on the same input, you can chain them together:\n\n```bash\necho \"line1\" | command1 | command2\n```\n\nThis will execute `command1` followed by `command2` for each line of input.\n\nRemember that `xargs` is often more flexible than using `while` loops or other methods to process lines.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 4,
+      "score_relevance": 4,
+      "score_context_usage": null,
+      "score_correctness": 4,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 4,
+        "grounding": 3,
+        "helpfulness": 4,
+        "reason": "xargs -n 1 example OK if thin.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "linux-redirect-stderr",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "How do I redirect stderr to a file in bash?",
+      "review_type": "auto",
+      "expected_collections": [
+        "bash_docs",
+        "man_pages"
+      ],
+      "human_rubric": null,
+      "response": "You can redirect the standard error output of a command to a file using the `2>` redirection operator. Here's an example:\n\n```bash\ncommand > output.txt 2> errors.log\n```\n\nThis will send all the error messages (standard error) from `command` to `errors.log`. The `>` redirects everything that comes out of `command` into `output.txt`, and the `2>` redirects anything that comes out of `command` but is not captured by `>` into `errors.log`.\n\nIf you want to redirect both standard output and standard error, you can use:\n\n```bash\ncommand > output.txt 2> errors.log\n```\n\nThis will send everything (both stdout and stderr) from `command` to the specified files.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "2> correct.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "linux-fake-command",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "What is the command to list all processes? I think it's ps list.",
+      "review_type": "auto",
+      "expected_collections": [
+        "man_pages"
+      ],
+      "human_rubric": "Hallucination test: 'ps list' is wrong; should suggest ps aux or ps -ef.",
+      "response": "The correct command to list all running processes on a Linux system is:\n\n```bash\nps -aux\n```\n\nThis will display detailed information about each process, including its user, PID, command name, and more.\n\nIf you want a simpler list of only the process IDs (PID), you can use:\n\n```bash\nps aux | grep '^ ' | awk '{print $2}'\n```\n\nHowever, for a cleaner output without headers or extra columns, `ps -aux` is generally preferred.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "ps -aux; rejects ps list.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "out-of-scope-weather",
+      "section_id": "linux",
+      "section_label": "Linux commands",
+      "query": "What will the weather be tomorrow in Helsinki?",
+      "review_type": "human",
+      "expected_collections": null,
+      "human_rubric": "Model should decline or redirect (out of scope). No confident wrong answer.",
+      "response": "Unfortunately, I am unable to provide current or future weather forecasts as they are typically provided by meteorological services and cannot be accessed through standard Linux commands or tools like `curl`. However, you can easily check the weather for Helsinki using a reliable weather website or app.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "Declines weather.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-list-containers",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I list running Docker containers?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To list the currently running Docker containers, use the following command:\n\n```bash\ndocker ps -a\n```\n\nThis will show you a list of all stopped and running containers. If you want to see only the running ones specifically, add `-q` or `--filter=status=running` at the end of the command:\n\n```bash\ndocker ps -aq\n```",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 3,
+      "score_relevance": 3,
+      "score_context_usage": null,
+      "score_correctness": 3,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 3,
+        "grounding": 2,
+        "helpfulness": 3,
+        "reason": "ps -a for 'running' is imprecise; -aq tip wrong.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-build-image",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I build a Docker image from a Dockerfile?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To build a Docker image from a Dockerfile, you can use the following command:\n\n```bash\ndocker build -t <image-name> .\n```\n\nReplace `<image-name>` with your desired name for the Docker image. The `.` at the end of the command means to build the image in the current directory where your Dockerfile is located.\n\nFor example, if your Dockerfile is named `Dockerfile` and you want to create an image called `myapp`, you would run:\n\n```bash\ndocker build -t myapp .\n```\n\nThis will download any necessary dependencies listed in the Dockerfile, build the image, and tag it with the specified name.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "docker build -t .",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-run-basic",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I run a container from the nginx image?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To run a container from the Nginx image, you can use the following command:\n\n```bash\nsudo docker run -d --name my-nginx-container nginx\n```\n\nThis will start a new container named `my-nginx-container` based on the Nginx image. The `-d` flag runs the container in detached mode (in the background), and the `--name` flag gives it an identifier.\n\nIf you want to run this command interactively, omit the `-d` flag:\n\n```bash\nsudo docker run --name my-nginx-container nginx\n```\n\nThis will start a new interactive session with the Nginx container.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "docker run nginx.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-stop-container",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I stop a running Docker container?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To stop a running Docker container, you can use the following command:\n\n```bash\ndocker stop <container_id_or_name>\n```\n\nReplace `<container_id_or_name>` with the actual ID or name of your container. For example:\n\n```bash\ndocker stop mywebapp\n```\n\nThis will immediately stop the specified container and remove it from the running list.\n\nIf you want to stop a container but keep its data, use `--rm` option:\n\n```bash\ndocker stop --rm <container_id_or_name>\n```\n\nRemember that stopping a container does not delete any associated volumes or files; these are managed separately.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 4,
+      "score_relevance": 4,
+      "score_context_usage": null,
+      "score_correctness": 4,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 4,
+        "grounding": 3,
+        "helpfulness": 4,
+        "reason": "docker stop OK; --rm wording confused.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-remove-container",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I remove a stopped container?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To stop and then remove a Docker container, you can use the following command:\n\n```bash\ndocker stop <container_id_or_name>\n```\n\nReplace `<container_id_or_name>` with the actual ID or name of your stopped container.\n\nAfter stopping the container, you can delete it permanently using:\n\n```bash\ndocker rm <container_id_or_name>\n```\n\nAgain, replace `<container_id_or_name>` with the actual ID or name of your stopped container.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 4,
+      "score_relevance": 4,
+      "score_context_usage": null,
+      "score_correctness": 4,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 4,
+        "grounding": 3,
+        "helpfulness": 4,
+        "reason": "stop+rm path OK for remove stopped.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-list-images",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I list all Docker images on my system?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To list all Docker images on your system, you can use the following command:\n\n```bash\ndocker image ls\n```\n\nThis will display a list of all available Docker images along with their details.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "docker image ls.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-run-port",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I run a container and map port 8080 on the host to port 80 in the container?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To run a container and map port 8080 on the host to port 80 inside the container, you can use the `docker run` command with the `-p` flag. Here's how:\n\n```bash\ndocker run -d --name mycontainer -p 80:8080 your_image_name\n```\n\nExplanation:\n- `docker run`: Starts a new container.\n- `-d`: Runs the container in detached mode, so it runs in the background.\n- `--name mycontainer`: Names the container for easy identification.\n- `-p 80:8080`: Maps port 80 on the host to port 80 inside the container. The second number (8080) is the container's exposed port.\n\nReplace `your_image_name` with the actual name or tag of your Docker image.\n\nExample:\nIf you have a Dockerfile for an Nginx server and want to run it in a container mapping port 8080 on the host to port 80 inside the container, the command would be:\n\n```bash\ndocker run -d --name mynginx -p 80:8080 nginx:latest\n```\n\nThis will start an Nginx server container with port 80 mapped to port 8080 on your host.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 2,
+      "score_relevance": 2,
+      "score_context_usage": null,
+      "score_correctness": 2,
+      "llm_judge": {
+        "pass": false,
+        "correctness": 2,
+        "grounding": 1,
+        "helpfulness": 2,
+        "reason": "Reverses mapping: -p 80:8080 instead of 8080:80.",
+        "judge": "composer"
+      },
+      "judge_pass": false
+    },
+    {
+      "id": "docker-run-detached",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I run a container in the background so it keeps running after I close the terminal?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To run a Docker container in the background and ensure it continues to run even when you close your terminal, use the `-d` (detached) flag. This will start the container in the background without requiring you to press `Ctrl+C` to stop it.\n\nHere’s how you can do it:\n\n```bash\ndocker run -dit <container_image> <optional_container_args>\n```\n\nFor example:\n```bash\ndocker run -dit nginx:latest\n```\n\nThis command starts a new Nginx container in the background. You can check its status with `docker ps` or `docker container ls`.\n\nIf you want to stop and remove the container when you're done, use:\n\n```bash\ndocker stop <container_id_or_name>\ndocker rm <container_id_or_name>\n```\n\nReplace `<container_image>` with your actual Docker image name (e.g., `nginx:latest`) and `<container_id_or_name>` with the unique identifier of your container.\n\nRemember that running containers in the background is useful for services you want to keep running even when you're not using the terminal.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "-d/-dit OK.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-exec",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I run a command inside a running container?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To run a command inside a running Docker container, you can use the `-it` flag with `docker exec`. Here's an example:\n\n```bash\ndocker exec -it your_container_name /bin/bash\n```\n\nReplace `your_container_name` with the name of the container you want to interact with. This will open a shell within that container.\n\nIf you need to run commands inside the container, simply append them after `/bin/bash`. For instance:\n\n```bash\ndocker exec -it your_container_name ls /path/to/directory\n```\n\nThis command lists the contents of the specified directory inside the container.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "docker exec -it correct.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-logs",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I view the logs of a Docker container?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To view the logs of a Docker container, you can use the following command:\n\n```bash\ndocker logs <container_id_or_name>\n```\n\nReplace `<container_id_or_name>` with the actual ID or name of your Docker container. For example:\n\n```bash\ndocker logs my_container\n```\n\nThis will display all the log messages from the specified container.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "docker logs.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-prune",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I remove unused Docker images and containers to free disk space?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To clean up unused Docker images and containers, freeing up disk space, follow these steps:\n\n1. **Remove Unused Images**:\n   ```bash\n   docker rmi $(docker images --filter \"dangling=true\" -q)\n   ```\n\n2. **Remove Unused Containers**:\n   ```bash\n   docker rm $(docker ps -a -q)\n   ```\n\n3. **Clean Up Docker Volume Space** (optional, but recommended):\n   This will remove unused volumes and their associated data.\n   ```bash\n   docker volume prune\n   ```\n\n4. **Check Disk Usage** to ensure that the space has been freed up:\n   ```bash\n   df -h\n   ```\n\nThese commands should help you free up disk space by removing unnecessary Docker images and containers, as well as unused volumes.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 3,
+      "score_relevance": 3,
+      "score_context_usage": null,
+      "score_correctness": 3,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 3,
+        "grounding": 2,
+        "helpfulness": 3,
+        "reason": "Manual rmi/rm; not system prune but frees space.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-compose-up",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I start all services defined in a docker-compose.yml file?",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": null,
+      "response": "To start all services defined in a Docker Compose file, you can use the following command:\n\n```bash\nsudo docker-compose up -d --scale <service-name>=1\n```\n\nReplace `<service-name>` with the name of your service(s). The `-d` flag runs the containers in detached mode, and `--scale` ensures that all instances of the specified service are started.\n\nFor example, if you have a Docker Compose file named `docker-compose.yml` for a web application and you want to start two replicas of it:\n\n```bash\nsudo docker-compose up -d --scale web=2\n```\n\nThis command will bring up two containers running your web application.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_score": 3,
+      "score_relevance": 3,
+      "score_context_usage": null,
+      "score_correctness": 3,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 3,
+        "grounding": 2,
+        "helpfulness": 3,
+        "reason": "docker-compose up -d works; unnecessary --scale.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-image-vs-container",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "What is the difference between a Docker image and a container?",
+      "review_type": "human",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": "Answer should be accurate (image = template, container = running instance). Grounded in docs; no hallucination.",
+      "response": "A Docker image is a read-only template that contains everything needed to run an application, including code, libraries, dependencies, and configuration files. It's like a blueprint for creating containers.\n\nA Docker container, on the other hand, is a running instance of an image. Containers are lightweight, portable, and isolated environments where processes can be executed. They use the underlying host machine's resources efficiently by sharing them with other containers rather than duplicating everything.\n\nHere’s how you might create a Docker image using `docker build`:\n\n```bash\n# Build an image from a Dockerfile in the current directory\ndocker build -t myapp .\n\n# Or, if your Dockerfile is located elsewhere:\ndocker build -t myapp /path/to/Dockerfile\n\n# To push this image to a registry (e.g., Docker Hub)\ndocker tag myapp username/repository:tag\ndocker login\ndocker push username/repository:tag\n```\n\nAnd here’s how you might run a container based on that image:\n\n```bash\n# Run the container using the built image\ndocker run -d --name mycontainer myapp\n\n# Or, specify more options:\ndocker run -d --name mycontainer --restart=always --memory 512m myapp\n```\n\nIn summary, an image is a static template that defines what a container should look like, while a container is the actual running instance of that image.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_score": 5,
+      "score_relevance": 5,
+      "score_context_usage": null,
+      "score_correctness": 5,
+      "llm_judge": {
+        "pass": true,
+        "correctness": 5,
+        "grounding": 4,
+        "helpfulness": 5,
+        "reason": "Image vs container correct.",
+        "judge": "composer"
+      },
+      "judge_pass": true
+    },
+    {
+      "id": "docker-hallucination-fake-cmd",
+      "section_id": "docker",
+      "section_label": "Docker",
+      "query": "How do I restart all my containers? I thought the command was docker restart all.",
+      "review_type": "auto",
+      "expected_collections": [
+        "docker_docs"
+      ],
+      "human_rubric": "Hallucination test: 'docker restart all' is not valid; should suggest looping over containers or docker compose restart.",
+      "response": "To restart all your Docker containers, you should use the following command:\n\n```bash\ndocker container prune --force\n```\n\nThis will remove unused images and stop any stopped containers.\n\nIf you want to specifically restart a specific container by name or ID, you can do so with:\n\n```bash\ndocker restart <container_name_or_id>\n```\n\nFor example:\n- To restart all containers named `web`:\n  ```bash\n  docker restart web\n  ```\n- Or for a specific container with an ID of `1234567890abcdef`:\n  ```bash\n  docker restart 1234567890abcdef\n  ```\n\nRemember, using `docker restart all` is not recommended as it will stop and delete any stopped containers.",
+      "context": "(base model only — no retrieval)",
+      "retrieval": {
+        "chunks_used": 0,
+        "used_retrieval": false,
+        "collections": []
+      },
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_score": 1,
+      "score_relevance": 1,
+      "score_context_usage": null,
+      "score_correctness": 1,
+      "llm_judge": {
+        "pass": false,
+        "correctness": 1,
+        "grounding": 1,
+        "helpfulness": 1,
+        "reason": "Suggests container prune for restart-all — wrong; confuses prune with restart.",
+        "judge": "composer"
+      },
+      "judge_pass": false
+    }
+  ]
+}

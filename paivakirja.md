@@ -1,6 +1,26 @@
 # Päiväkirja projektiin liittyen
 *Poistetaan*
 
+## 11.11
+- GPU / host-Ollama -tuki docker-composelle
+- Env-esimerkki ja README päivityksiä
+- Baseline vs RAG -evaluointi ja tulosten tallennus
+- Eval-putken / tulosten automaattisia parannuksia
+- RAG-korjausta
+- Pienen mallin, qwen2.5:1.5b, vertailua
+- Projektiraportin kirjoittelua
+
+## 10.11
+- Projektiraportin kirjoittelua
+
+## 6.10
+- Projektiraportin kirjoittelua
+- Koko repon ihmettelyä
+
+## 21.9
+- RAG-parannuksia
+- System promptien hienosäätöä
+
 ## 5.9
 - RAG korjauksia
 - Agentti käyttääm RAG

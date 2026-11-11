@@ -1,0 +1,239 @@
+fedora-dnf-update	sec=fedora	auto=False	chunks=4
+Q: How do I update all packages on Fedora?
+A: To update all packages in Fedora, you can use the `dnf` command with the `-y` flag to automatically answer "yes" to any prompts and the `update` option. Here's how you can do it:  ```bash sudo dnf update -y ```  This command will check for updates and install them on all installed packages in your system.  If you want to ensure that only specific repositories are updated, you can specify them usin
+
+fedora-install-package	sec=fedora	auto=True	chunks=4
+Q: How do I install a package on Fedora?
+A: To install a package on Fedora, you can use the `dnf` (Docker Network File System) package manager. Here’s how to do it:  1. **Open Terminal**: You can open the terminal by pressing `Ctrl + Alt + T`.  2. **Install dnf if not already installed**:    ```bash    sudo dnf install dnf-plugins-core    ```  3. **Update Package List and Install a Package**:    - If you know the package name, use:      ```
+
+fedora-search-package	sec=fedora	auto=True	chunks=4
+Q: How do I search for a package on Fedora?
+A: To search for a package in Fedora, you can use the `dnf` command with the `-q` option followed by the name of the package you're looking for. For example:  ```bash sudo dnf search <package_name> ```  Replace `<package_name>` with the actual name of the package you want to find.  For instance, if you are searching for "vim" (a popular text editor):  ```bash sudo dnf search vim ```  This command wil
+
+fedora-remove-package	sec=fedora	auto=True	chunks=4
+Q: How do I remove a package on Fedora?
+A: To remove a package in Fedora, you can use the `dnf` command with the `-y` flag (yes) and the `remove` option to confirm the removal of the package:  ```bash sudo dnf remove packagename ```  Replace `packagename` with the name of the package you want to uninstall. This command will prompt for confirmation, so type `y` when prompted.  If you also want to remove all dependencies that are no longer r
+
+no-hallucination-command	sec=fedora	auto=False	chunks=4
+Q: What exact command do I use to show Fedora version?
+A: To check the current Fedora version on your system, you can use the following command:  ```bash ls -l /etc/fedora-release ```  This will display the version of Fedora installed on your system. If `/etc/fedora-release` does not exist or is empty, you might need to update your package list and try again.  If you prefer a more direct way to check the current version without using `ls`, you can use:  
+
+fedora-selinux-brief	sec=fedora	auto=None	chunks=4
+Q: In one sentence, what is SELinux on Fedora?
+A: SELinux on Fedora is an enhanced security module designed to provide additional security features and fine-grained access control compared to the default Linux permissions system.
+
+fedora-trap-ubuntu	sec=fedora	auto=False	chunks=4
+Q: How do I install packages on Fedora? Use the same command I use on Ubuntu.
+A: To install packages on Fedora, you should use `dnf`, which is similar to `apt` in Ubuntu but works with RPM-based package management.  Here’s how you can do it:  1. **Update Package Lists**: Before installing a new package, make sure your package lists are up-to-date.    ```bash    sudo dnf update    ```  2. **Install the Package**: Use `dnf` to install the desired package.    ```bash    sudo dnf 
+
+fedora-dnf-vs-yum	sec=fedora	auto=None	chunks=4
+Q: Should I use yum or dnf on modern Fedora?
+A: For modern Fedora, you should primarily use `dnf` for package management. `dnf` is the default software package manager and has several advantages over `yum`, including:  - **Automatic Dependency Resolution**: `dnf` automatically resolves dependencies to ensure that all required packages are installed. - **Improved Performance**: `dnf` is designed to be faster than `yum`. - **Enhanced Security Fea
+
+fedora-repo-list	sec=fedora	auto=True	chunks=4
+Q: How do I list enabled repositories on Fedora?
+A: To list the enabled repositories on your Fedora system, you can use the following command:  ```bash dnf repolist --enabled ```  This will display a list of all available repositories and indicate which ones are currently enabled.
+
+fedora-clean-cache	sec=fedora	auto=True	chunks=4
+Q: How do I clean dnf cache to free disk space?
+A: To clean the DNF cache and free up disk space, you can use the following command:  ```bash sudo dnf clean all ```  This will remove old package information from your local repository, freeing up disk space. After running this command, you may need to update your system packages again with `dnf update` or reboot your system for changes to take effect.  Remember that cleaning the cache can also spee
+
+docker-vs-podman	sec=fedora	auto=None	chunks=4
+Q: Should I use Docker or Podman on Fedora?
+A: Both Docker and Podman are powerful tools for managing containers in a Fedora environment, but they have different strengths and may be better suited to certain use cases.  Docker is the more widely known tool with a larger ecosystem of plugins and integrations. It has been around longer and is supported by major technology companies like Amazon Web Services (AWS) and Microsoft Azure. Docker also 
+
+out-of-scope-polite	sec=fedora	auto=None	chunks=0
+Q: What is the capital of France?
+A: The capital of France is Paris.
+
+git-status	sec=git	auto=True	chunks=4
+Q: How do I check the status of my git repository?
+A: To check the status of your Git repository, you can use the `git status` command. This will show you a summary of changes in your working directory and staging area.  ```bash git status ```  This command provides a quick overview of what needs to be committed or unstaged for commit.
+
+git-add-commit	sec=git	auto=True	chunks=4
+Q: How do I add all files and commit in git?
+A: To add all files and commit them in Git, you can use the following command:  ```bash git add . git commit -m "Your commit message" ```  This will stage all changes in your working directory and create a new commit with the specified message.
+
+git-log-oneline	sec=git	auto=True	chunks=4
+Q: How do I show a short one-line log of commits?
+A: To show a short one-line log of commits, you can use the `--oneline` option with `git log`. This will display each commit in a single line.  Here's an example:  ```bash git log --oneline ```  This command will list all commits on your current branch or specified branch (if provided), and show each commit as a short one-line summary.
+
+git-branch-create	sec=git	auto=True	chunks=4
+Q: How do I create a new branch in git?
+A: To create a new branch in Git, you can use the `git checkout` command with the `-b` option. Here's how to do it:  ```bash git checkout -b new-branch-name origin/branch-to-copy ```  Replace `new-branch-name` with the name of your desired branch and `origin/branch-to-copy` with the name or URL of the remote branch you want to copy.  For example, if you want to create a new branch named "feature1" fr
+
+git-diff-staged	sec=git	auto=True	chunks=4
+Q: How do I see what I staged for commit?
+A: To see what you have staged for your next commit, you can use the `git add` command followed by `git status`. This will show you which files are currently in your staging area and any changes that need to be committed. If you want a more detailed view of what has been added or removed since the last commit, you can run:  ```bash git diff ```  This will display the differences between the current s
+
+git-undo-last-commit	sec=git	auto=False	chunks=4
+Q: How do I undo my last commit but keep the changes?
+A: To undo your last commit while keeping the changes, you should use `git reset` with the `--soft` option. This will leave your working directory unchanged and update only the index (staging area) to match the new HEAD.  Here’s how you can do it:  ```bash # Switch back to the previous commit git checkout <commit-hash>  # Reset the index to match the current HEAD, but keep the changes in the working 
+
+git-reflog	sec=git	auto=None	chunks=4
+Q: I reset and lost a commit. How do I find the lost commit hash?
+A: To recover a lost commit in Git, you can use the `git reflog` command to see where your changes were last committed. Here’s how you can find the lost commit:  ```bash # List all commits with their corresponding paths and timestamps git log --oneline --graph --all --decorate  # Find the hash of the commit you want to recover # For example, if you remember that the commit was made on a specific date
+
+git-rebase-vs-merge	sec=git	auto=None	chunks=4
+Q: What is the difference between git merge and git rebase?
+A: The main differences between `git merge` and `git rebase` are:  1. **Behavior on Divergent Branches**:    - When merging, `git merge` will create a new commit that combines changes from both branches.    - When rebasing, `git rebase` will replay the commits of one branch onto another, effectively rewriting history.  2. **Handling Conflicts**:    - `git merge` can automatically resolve conflicts by
+
+git-cherry-pick	sec=git	auto=False	chunks=4
+Q: How do I apply a single commit from another branch onto my current branch?
+A: To apply a single commit from another branch onto your current branch in Git, follow these steps:  1. First, ensure you are on the branch where you want to incorporate the changes (e.g., `topic`):    ```bash    git checkout topic    ```  2. Next, fetch the latest commits from the remote repository:    ```bash    git fetch origin    ```  3. Once fetched, switch back to your local branch that contai
+
+git-stash	sec=git	auto=False	chunks=4
+Q: How do I temporarily save my uncommitted changes and switch branch?
+A: To temporarily save your uncommitted changes and switch to another branch, you can use the `git checkout` command with the `-b` option. This will create a new branch based on the current state of your working directory without committing any changes yet.  Here’s how you do it:  ```bash # Switch to a new branch named 'branch2' git switch -c branch2  # Now, make some changes in your working tree and
+
+git-hallucination-fake-cmd	sec=git	auto=True	chunks=4
+Q: What is the command to sync my branch with remote? I think it's git sync.
+A: The command you're looking for is `git pull`. This will update your local repository by fetching from the remote and merging the changes into your current branch.  Here’s an example of how to use `git pull`:  ```bash # Fetch updates from the remote repository git fetch  # Merge the remote branch into your current branch git merge origin/<branch-name> ```  Replace `<branch-name>` with the name of t
+
+git-remote-add	sec=git	auto=True	chunks=1
+Q: How do I add a remote called origin pointing to a URL?
+A: To add a remote named "origin" in Git, you can use the following command:  ```bash git remote add origin <URL> ```  Replace `<URL>` with the actual URL of the repository you want to track. For example:  ```bash git remote add origin https://github.com/username/repository.git ```  This will create a remote named "origin" that points to the specified Git repository.
+
+bash-loop-files	sec=bash	auto=True	chunks=4
+Q: How do I loop over all .txt files in a directory in bash?
+A: To loop over all `.txt` files in a directory using Bash, you can use the following command:  ```bash for file in *.txt; do echo "$file"; done ```  This will list each `.txt` file found in the current directory. If there are no `.txt` files, it will simply print nothing.  If you want to execute some command on each `.txt` file instead of just listing them, you can modify the loop like this:  ```bas
+
+bash-array-syntax	sec=bash	auto=True	chunks=4
+Q: What is the syntax for bash arrays?
+A: In Bash, you can define an array using either the `declare` or `local` command. Here are the basic syntaxes:  ### Indexed Arrays: ```bash # Declare a non-associative indexed array named 'my_array' declare -a my_array  # Assign values to the array my_array[0]=apple my_array[1]=banana my_array[2]=cherry  # Access elements by index echo "${my_array[0]}"  # Output: apple ```  ### Associative Arrays: `
+
+bash-conditional	sec=bash	auto=True	chunks=4
+Q: How do I check if a file exists in a bash script?
+A: To check if a file exists in a Bash script, you can use the `-e` test command. This command checks whether a specified path exists and is accessible.  Here's an example of how to check for the existence of a file named `example.txt`:  ```bash #!/bin/bash  # Check if 'example.txt' exists if [ -e "example.txt" ]; then   echo "File exists." else   echo "File does not exist." fi ```  In this script, `
+
+bash-echo-variable	sec=bash	auto=True	chunks=4
+Q: How do I print the value of a variable in bash?
+A: To print the value of a variable in Bash, you can use the `echo` command followed by the name of the variable enclosed in dollar signs (`$`). For example:  ```bash echo $MY_VARIABLE ```  Replace `MY_VARIABLE` with the actual name of your variable. If the variable is not set or does not exist, Bash will output nothing.  If you want to print multiple variables, you can list them separated by spaces:
+
+bash-read-input	sec=bash	auto=True	chunks=4
+Q: How do I read user input into a variable in bash?
+A: To read user input into a Bash variable, you can use the `read` command with an option to assign the input directly to a variable. Here’s how you can do it:  ### Example 15-3: Variable Assignment Using `read` ```bash #!/bin/bash  # "Reading" variables. echo -n "Enter the value of variable 'var1': " read var1 echo "var1 = $var1"  echo # A single 'read' statement can set multiple variables.  echo -n
+
+bash-vs-man	sec=bash	auto=None	chunks=4
+Q: What is the difference between [ and [[ in bash?
+A: The main differences between `[` and `[[` in Bash are:  1. **Syntax Differences**:    - `[` is a built-in command that evaluates expressions.    - `[[ ... ]]` is a feature of the Korn shell (ksh), Bash, Zsh, and some versions of busybox sh.  2. **Power and Flexibility**:    - `[` is POSIX-compliant and works in most shells, including older ones.    - `[[ ... ]]` provides more flexibility with enha
+
+explain-pipe	sec=bash	auto=None	chunks=4
+Q: Explain what a pipe does in bash and give one example.
+A: A pipe in Bash allows you to connect the standard output of one command to the standard input of another command. This is useful for chaining commands together where each outputs data that can be used by the next command.  Here's an example:  ```bash ls -l | grep "example" ```  In this command: - `ls -l` lists all files in the current directory with detailed information. - The output of `ls -l` is
+
+bash-quoting	sec=bash	auto=None	chunks=4
+Q: When should I use double quotes vs single quotes in bash?
+A: When to Use: - **Double Quotes (`"`)**:    - Preserve the literal value of each character inside the quotes.   - Escape special characters and prevent word splitting.   - Useful for command substitution, history expansion, and parameter expansions.  - **Single Quotes (`'`)**:    - Remove the special meaning of every character between the quotes.   - Literally represent all characters within the qu
+
+rag-context-use	sec=bash	auto=None	chunks=4
+Q: What does set -e do in a bash script?
+A: The `set -e` option in Bash sets the "errexit" behavior for scripts. When this option is enabled (as it is by default), the shell will exit immediately if any command fails, and no further commands in the current script will be executed.  ### Explanation: - **Immediate Exit on Failure**: If a command in your script returns an error status (`exit code` other than 0), Bash will terminate the entire 
+
+bash-set-u	sec=bash	auto=True	chunks=4
+Q: What does set -u do in bash?
+A: The `-u` option tells Bash to treat unset variables as an error when substituting into expressions or command substitution.  Here's a simple example:  ```bash #!/bin/bash  # This will cause an error because the variable 'foo' is not defined echo "Hello, $foo!"  # Uncommenting this line will also cause an error # echo "This should be fine." ```  When you run this script with `set -u` enabled (e.g.,
+
+bash-subshell	sec=bash	auto=True	chunks=4
+Q: How do I run a command in a subshell in bash?
+A: To run a command in a subshell in Bash, you can use the `source` command followed by the name of your script or file. This will execute commands from that file within the current shell session.  Here's an example:  ```bash #!/bin/bash  # Define a function to be executed in a subshell subshell_function() {     echo "Subshell running..." }  # Run the function in a subshell source myscript.sh ```  In
+
+bash-trap-hallucination	sec=bash	auto=False	chunks=4
+Q: How do I catch errors in bash? I heard there is try/catch.
+A: In Bash, you can use `trap` with signals to handle errors and exceptions. The `trap` command allows you to set up handlers for specific signals or events that may occur during the execution of your script.  ### Example: Using `trap` to Catch Errors  ```bash #!/bin/bash  # Define a function to be called when an error occurs error_handler() {     echo "An error occurred in this script." }  # Set the
+
+multi-source	sec=bash	auto=None	chunks=4
+Q: I want to write a bash script that runs dnf update and then runs a docker build. How?
+A: To create a Bash script that first updates your system using `dnf` and then builds a Docker image with the `docker buildx` command, you can follow these steps:  1. **Update System**: Use `dnf update` to ensure all packages are up-to-date. 2. **Build Docker Image**: Use `docker buildx build` to create or rebuild your Docker image.  Here's an example script that accomplishes this:  ```bash #!/bin/ba
+
+grep-basic	sec=linux	auto=True	chunks=4
+Q: How do I search for a string in a file using the command line?
+A: To search for a specific string within a file, you can use the `grep` command with the `-n` option to display line numbers and the `-r` option to perform a recursive search. Here’s how you can do it:  ```bash grep -rnw '/path/to/your/file' 'string_to_search' ```  Explanation: - `/path/to/your/file`: Replace this with the actual path to your file. - `n`: This is for line numbers, but since we're us
+
+man-page-exists	sec=linux	auto=True	chunks=4
+Q: How do I read the manual for the ls command?
+A: To read the manual for the `ls` command, you can use the following commands:  ```bash man ls ```  This will open the manual page for the `ls` command in your default web browser. You can also find it locally via:  ```bash info '(coreutils) ls invocation' ```  These commands provide detailed information about how to use and understand the `ls` command, including its options and behavior.
+
+linux-find-name	sec=linux	auto=True	chunks=4
+Q: How do I find files by name in the current directory and below?
+A: To find files by name in the current directory and its subdirectories, you can use the `find` command with the `-name` option. Here’s how you can do it:  ```bash find . -name "your_file_name" ```  Replace `"your_file_name"` with the actual name of the file you are looking for.  For example, if you want to find a file named `example.txt`, you would run:  ```bash find . -name "example.txt" ```  This
+
+linux-chmod	sec=linux	auto=True	chunks=4
+Q: How do I make a script executable with chmod?
+A: To make a script executable using `chmod`, you can use the following command:  ```bash chmod +x your_script_name.sh ```  Replace `your_script_name.sh` with the actual name of your script file. This will add execute permissions to the script, allowing it to be run directly.  For example: ```bash chmod +x myscript.sh ```  This command adds execute permission (`+x`) to the `myscript.sh` file, making 
+
+linux-kill-signal	sec=linux	auto=None	chunks=4
+Q: How do I kill a process by PID? What signal does kill send by default?
+A: To kill a process by its PID in Fedora:  ```bash kill [PID] ```  By default, `kill` sends the SIGTERM signal to the process. If you want to send another specific signal (e.g., SIGKILL), you can specify it like this:  ```bash kill -signal_number PID ```  For example, to send a SIGKILL signal to a process with PID 12345:  ```bash kill -9 12345 ```  This will forcefully terminate the process.
+
+linux-xargs-basic	sec=linux	auto=True	chunks=4
+Q: How do I run a command on each line of input?
+A: To read multiple lines from standard input and process them one by one in Bash, you can use the `while` loop with `read`. This allows you to capture each line as an array element. Here’s how you can do it:  ```bash # Example command(s) for demonstration purposes command1="echo Hello" command2="echo World"  # Run commands on multiple lines while IFS= read -r line; do   "$command1" <<< "$line"   "$c
+
+linux-redirect-stderr	sec=linux	auto=True	chunks=4
+Q: How do I redirect stderr to a file in bash?
+A: To redirect stderr (standard error) to a file in Bash, you can use the `2>` operator. This is equivalent to using `>&` with both stdout and stderr redirected to the same file.  Here’s an example:  ```bash command > output.txt 2> errors.log ```  In this command: - `command` is the program or script that generates error messages. - `output.txt` is where you want the standard output (stdout) to be di
+
+linux-fake-command	sec=linux	auto=True	chunks=4
+Q: What is the command to list all processes? I think it's ps list.
+A: The command you're looking for is `ps -e`. This will show every process on your system using standard syntax:  ```bash ps -e ```  If you want to see a specific process, you can use its PID (Process ID). For example, if the PID of the process is 42, you would run:  ```bash ps -p 42 ```
+
+out-of-scope-weather	sec=linux	auto=None	chunks=0
+Q: What will the weather be tomorrow in Helsinki?
+A: Unfortunately, I'm unable to provide current or future weather forecasts as it requires internet access and real-time data which I don't have. You can check a reliable weather website or app for accurate information.
+
+docker-list-containers	sec=docker	auto=True	chunks=4
+Q: How do I list running Docker containers?
+A: To list all currently running Docker containers, you can use the following command:  ```bash docker ps -a ```  This will show you all the containers that are either stopped or have been removed. If you want to see only the running containers (those with `STATUS` of "running"), you can add `-q` flag:  ```bash docker ps -aq ```  These commands help you manage and monitor your Docker containers effec
+
+docker-build-image	sec=docker	auto=True	chunks=4
+Q: How do I build a Docker image from a Dockerfile?
+A: To build a Docker image from a Dockerfile, you can use the `docker build` command. Here's an example:  ```bash docker build -t my-image-name . ```  In this command: - `-t`: Specifies the tag for the built image. - `my-image-name`: The name of your desired Docker image. - `.`: Indicates that the current directory is where the Dockerfile is located.  This will create a new Docker image named `my-ima
+
+docker-run-basic	sec=docker	auto=True	chunks=4
+Q: How do I run a container from the nginx image?
+A: To run a container from the `nginx` image, you can use the following command:  ```bash docker run -d nginx ```  This will start a detached (background) container running the Nginx service. You can then access it using its name or by connecting to the network it's part of.  If you want to specify additional options like ports mapping or volumes, you can add them as follows:  ```bash docker run -d -
+
+docker-stop-container	sec=docker	auto=True	chunks=4
+Q: How do I stop a running Docker container?
+A: To stop a running Docker container, you can use the following command:  ```bash docker stop CONTAINER_NAME ```  Replace `CONTAINER_NAME` with the actual name of your running container. This command will stop the specified container without removing it from the system.  If you want to completely remove the container including its images and data, you should use the following command:  ```bash docke
+
+docker-remove-container	sec=docker	auto=True	chunks=4
+Q: How do I remove a stopped container?
+A: To remove a stopped container in Docker, you can use the `docker container rm` command. This command removes the specified container along with its associated volumes.  Here’s an example of how to remove a stopped container:  ```bash # Remove a stopped container and its volumes docker container rm <container_id_or_name> ```  Replace `<container_id_or_name>` with the actual ID or name of the contai
+
+docker-list-images	sec=docker	auto=True	chunks=4
+Q: How do I list all Docker images on my system?
+A: To list all Docker images on your system, you can use the `docker image ls` command. This will show a comprehensive list of all top-level images along with their repository names and tags.  ```bash docker image ls ```  This command will display information about each image, including its size in bytes, which is equivalent to disk space used by the Tar file created when you use `docker save`. It al
+
+docker-run-port	sec=docker	auto=True	chunks=4
+Q: How do I run a container and map port 8080 on the host to port 80 in the container?
+A: To run a container and map port 8080 on the host to port 80 inside the container, you can use the `--publish` flag with the `-p` option. Here's how you can do it:  ```bash docker run -d --publish 8080:80 nginx:alpine ```  In this command: - `-d`: Runs the container in detached mode. - `--publish 8080:80`: Maps port 8080 on the host to port 80 inside the container.  This will start a new container 
+
+docker-run-detached	sec=docker	auto=True	chunks=4
+Q: How do I run a container in the background so it keeps running after I close the terminal?
+A: To run a container in the background and keep it running even when you close your terminal, use the `-d` (detached) flag with `docker run`. This will start the container as a background process that doesn't occupy your terminal window. By default, containers started in detached mode exit when the root process used to run the container exits.  Here's how you can do it:  ```bash docker run -dit <ima
+
+docker-exec	sec=docker	auto=True	chunks=4
+Q: How do I run a command inside a running container?
+A: To run a command inside a running Docker container, you can use the `docker compose exec` subcommand. This allows you to execute arbitrary commands within your Compose service.  Here's an example:  ```bash docker compose exec <SERVICE_NAME> COMMAND [ARGS...] ```  Replace `<SERVICE_NAME>` with the name of your Compose service and `COMMAND` with the command you want to run inside the container.  For
+
+docker-logs	sec=docker	auto=True	chunks=4
+Q: How do I view the logs of a Docker container?
+A: To view the logs of a Docker container, you can use the `docker container logs` command. This command fetches and displays the logs for a specific container.  Here's an example:  ```bash docker container logs CONTAINER_NAME ```  Replace `CONTAINER_NAME` with the name or ID of the container you want to view the logs for.  For instance, if your container is named "mycontainer", you would run:  ```ba
+
+docker-prune	sec=docker	auto=True	chunks=4
+Q: How do I remove unused Docker images and containers to free disk space?
+A: To remove unused Docker images, containers, networks, and build cache to free up disk space, you can use the `docker system prune` command. This command will delete all stopped containers, unused networks, dangling images (images without a tag), and optionally, untagged parents of images.  Here's how you can do it:  ```bash # Remove unused images docker image prune  # Optionally remove unused netw
+
+docker-compose-up	sec=docker	auto=True	chunks=4
+Q: How do I start all services defined in a docker-compose.yml file?
+A: To start all services defined in your `docker-compose.yml` file, you can use the following command:  ```bash docker compose up --detach ```  This will create and start all containers for the services specified in your `docker-compose.yml`. The `--detach` flag ensures that the containers run in detached mode, so they won't block your terminal.
+
+docker-image-vs-container	sec=docker	auto=None	chunks=4
+Q: What is the difference between a Docker image and a container?
+A: A Docker image is a static representation of a Dockerized application. It contains all the necessary files and dependencies required to run an application. An image can be thought of as a blueprint that defines what the final container will look like.  On the other hand, a Docker container is a running instance of an image. When you build or pull an image, it creates a new layer on top of the base
+
+docker-hallucination-fake-cmd	sec=docker	auto=True	chunks=4
+Q: How do I restart all my containers? I thought the command was docker restart all.
+A: The correct command to restart all your Docker containers is `docker container restart`. You can use this command to stop and then start all your running containers.  Here's an example of how you might run it:  ```bash docker container restart $(docker ps -aq) ```  This command will find all the running containers (using `-aq` which stands for "all" and "active") and restart them.

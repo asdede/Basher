@@ -11,11 +11,11 @@
 #   Sends your question to the Basher API and prints the assistant's response.
 #   You can pass the question as arguments (no quotes needed) or via stdin.
 #
-# OPTIONS (planned; currently only --help is implemented)
+# OPTIONS
 #   --help    Show this help and exit.
-#   --start   Starts the basher containers.
-#   --stop    Stops the basher containers.
-#   --down    Destroys the basher containers.
+#   --start   Starts the basher containers (exit 0 on success).
+#   --stop    Stops the basher containers (exit 0 on success).
+#   --down    Removes the basher containers (volumes kept).
 #   --status  Show whether the API is running and healthy.
 #   --agent   Use the agent endpoint (/agent/run) instead of /ask. If the
 #             agent wants to run shell commands, the CLI surfaces them and
@@ -28,17 +28,20 @@
 #   BASHER_CONNECT_TIMEOUT    Seconds to wait for connection (default: 5).
 #   BASHER_HEALTH_MAX_TIME    Max seconds for health check (default: 10).
 #   BASHER_ASK_MAX_TIME       Max seconds for /ask request (default: 300).
+#   BASHER_USE_GPU            If 1, --start also loads docker-compose.gpu.yml.
+#   BASHER_INSTALL_DIR        Repo root (default: parent of Scripts/).
 #
 # EXAMPLES
 #   basher.sh how do I list files
 #   basher.sh "one quoted question"
 #   echo "how do I use grep?" | basher.sh
 #   BASHER_DEBUG=1 basher.sh explain bash arrays
+#   BASHER_USE_GPU=1 basher.sh --start
 #
 # EXIT CODES
 #   0   Success.
-#   1   Usage error, API error, no response, or invalid JSON.
-#   2   API unreachable or not healthy (connection failed or health check failed).
+#   1   Usage error, API error, compose failure, no response, or invalid JSON.
+#   2   API unreachable or not healthy; Docker unavailable for --start/--stop.
 #   130 Script interrupted (e.g. Ctrl+C).
 #
 
@@ -55,8 +58,6 @@ SCRIPT_PATH="${BASH_SOURCE[0]}"
 SCRIPT_DIR=$(cd "$(dirname "$SCRIPT_PATH")" && pwd)
 BASHER_INSTALL_DIR="${BASHER_INSTALL_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
-# --- Subcommands (stubs for future --start, --stop, etc.) ---
-
 show_help() {
   sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
   echo "Usage: basher.sh [OPTIONS] your question here"
@@ -64,36 +65,93 @@ show_help() {
   echo ""
   echo "Options:"
   echo "  --help   Show this help."
-  echo "  --start  Starts the basher containers."
-  echo "  --stop   Stops the basher containers."
-  echo "  --down   Destroys the basher containers."
+  echo "  --start  Start containers (exit 0 on success)."
+  echo "  --stop   Stop containers (exit 0 on success)."
+  echo "  --down   Remove containers; volumes kept."
   echo "  --status Show API status."
-  echo "  --agent  Use the agent endpoint (no interactive tool approval)."
+  echo "  --agent  One-shot agent call (no interactive tool approval)."
   exit 0
 }
 
-cmd_start() {
-  check_docker_running
-  # Run API as current user so eval/results files are writable by the host (e.g. eval-app saving scores)
-  export UID=$(id -u)
-  export GID=$(id -g)
-  cd $BASHER_INSTALL_DIR
-  docker compose up -d --build
+# --- Lifecycle: compose helpers ---
 
+compose_files() {
+  # Prints -f args for docker compose. GPU overlay only when requested.
+  if [[ "${BASHER_USE_GPU:-0}" == "1" ]]; then
+    echo "-f docker-compose.yml -f docker-compose.gpu.yml"
+  else
+    echo "-f docker-compose.yml"
+  fi
+}
+
+check_docker_running() {
+  if docker info >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Basher: Docker is not running. Trying to start the docker service..." >&2
+  if command -v systemctl >/dev/null 2>&1 && sudo systemctl start docker; then
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      sleep 1
+      if docker info >/dev/null 2>&1; then
+        return 0
+      fi
+    done
+  fi
+  echo "Basher: Docker is not available. Start Docker and retry." >&2
+  return 1
+}
+
+cmd_start() {
+  check_docker_running || exit 2
+  cd "$BASHER_INSTALL_DIR" || exit 1
+  # UID is readonly in bash; pass it only to the compose child env.
+  # shellcheck disable=SC2086
+  local files
+  files=$(compose_files)
+  if [[ "${BASHER_USE_GPU:-0}" == "1" ]]; then
+    echo "Basher: starting with GPU overlay (docker-compose.gpu.yml)"
+  else
+    echo "Basher: starting without GPU reservation (set BASHER_USE_GPU=1 for NVIDIA)"
+  fi
+  # bash treats UID as readonly; use env(1) so compose gets UID/GID without
+  # assigning the shell variable.
+  # shellcheck disable=SC2086
+  if env UID="$(id -u)" GID="$(id -g)" docker compose $files up -d --build; then
+    echo "Basher: containers started."
+    exit 0
+  fi
+  echo "Basher: docker compose up failed." >&2
   exit 1
 }
 
 cmd_stop() {
-  check_docker_running
-  cd $BASHER_INSTALL_DIR
-  docker compose stop
+  check_docker_running || exit 2
+  cd "$BASHER_INSTALL_DIR" || exit 1
+  # shellcheck disable=SC2086
+  local files
+  files=$(compose_files)
+  # shellcheck disable=SC2086
+  if docker compose $files stop; then
+    echo "Basher: containers stopped."
+    exit 0
+  fi
+  echo "Basher: docker compose stop failed." >&2
   exit 1
 }
 
 cmd_down() {
-  check_docker_running
-  cd $BASHER_INSTALL_DIR
-  docker compose down
+  check_docker_running || exit 2
+  cd "$BASHER_INSTALL_DIR" || exit 1
+  # shellcheck disable=SC2086
+  local files
+  files=$(compose_files)
+  # shellcheck disable=SC2086
+  if docker compose $files down; then
+    echo "Basher: containers removed (volumes kept)."
+    exit 0
+  fi
+  echo "Basher: docker compose down failed." >&2
   exit 1
 }
 
@@ -191,14 +249,6 @@ prettify() {
   fi
 }
 
-check_docker_running() {
-  if ! docker ps > /dev/null 2>&1; then
-    echo "Docker is not running. Starting docker service..." >&2
-    sudo systemctl start docker
-    return 1
-  fi
-}
-
 # --- Agent endpoint (single round-trip) ---
 #
 # We deliberately do NOT loop /agent/tool-results in the CLI. Tool approval
@@ -264,6 +314,7 @@ main() {
       --help|-h)   show_help ;;
       --start)     cmd_start ;;
       --stop)      cmd_stop ;;
+      --down)      cmd_down ;;
       --status)    cmd_status ;;
       --agent)     use_agent="true" ;;
       --)          shift; break ;;

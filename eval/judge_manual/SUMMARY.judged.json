@@ -1,0 +1,158 @@
+{
+  "judge": "composer",
+  "source": "eval/judge_manual/*.judged.json",
+  "note": "LLM-as-judge over saved answers; corrects brittle auto phrase matching.",
+  "headline_table": [
+    {
+      "run": "Baseline qwen3.5:4b",
+      "judge_pass": "57/60",
+      "judge_pct": 95.0,
+      "avg_correctness": 4.12,
+      "auto_pass": "39/46"
+    },
+    {
+      "run": "RAG qwen3.5:4b",
+      "judge_pass": "47/60",
+      "judge_pct": 78.3,
+      "avg_correctness": 3.68,
+      "auto_pass": "39/46"
+    },
+    {
+      "run": "RAG qwen2.5:1.5b",
+      "judge_pass": "52/60",
+      "judge_pct": 86.7,
+      "avg_correctness": 3.92,
+      "auto_pass": "42/46"
+    },
+    {
+      "run": "Baseline qwen2.5:1.5b",
+      "judge_pass": "49/60",
+      "judge_pct": 81.7,
+      "avg_correctness": 3.65,
+      "auto_pass": "40/46"
+    }
+  ],
+  "rag_lift": {
+    "qwen3.5:4b": {
+      "helped": [
+        "bash-subshell",
+        "git-cherry-pick",
+        "out-of-scope-polite"
+      ],
+      "hurt": [
+        "bash-set-u",
+        "docker-image-vs-container",
+        "docker-list-containers",
+        "docker-run-detached",
+        "docker-stop-container",
+        "fedora-repo-list",
+        "fedora-search-package",
+        "git-reflog",
+        "git-remote-add",
+        "linux-find-name",
+        "linux-xargs-basic",
+        "man-page-exists",
+        "no-hallucination-command"
+      ],
+      "net": -10
+    },
+    "qwen2.5:1.5b": {
+      "helped": [
+        "git-hallucination-fake-cmd",
+        "git-stash",
+        "git-undo-last-commit",
+        "linux-fake-command",
+        "linux-redirect-stderr",
+        "multi-source"
+      ],
+      "hurt": [
+        "fedora-repo-list",
+        "git-diff-staged",
+        "linux-find-name"
+      ],
+      "net": 3
+    }
+  },
+  "runs": {
+    "Base 4b": {
+      "path": "/home/masterbates/code/school/Basher/eval/judge_manual/base_4b.judged.json",
+      "model": "qwen3.5:4b",
+      "mode": "base",
+      "judge_pass": "57/60",
+      "judge_pct": 95.0,
+      "avg_correctness": 4.12,
+      "auto_pass": "39/46",
+      "auto_pct": 84.8,
+      "sections": {
+        "bash": "12/13",
+        "docker": "14/14",
+        "fedora": "11/12",
+        "git": "11/12",
+        "linux": "9/9"
+      },
+      "n": 60,
+      "jp": 57,
+      "avg": 4.116666666666666
+    },
+    "RAG 4b": {
+      "path": "/home/masterbates/code/school/Basher/eval/judge_manual/rag_4b.judged.json",
+      "model": "qwen3.5:4b",
+      "mode": "rag",
+      "judge_pass": "47/60",
+      "judge_pct": 78.3,
+      "avg_correctness": 3.68,
+      "auto_pass": "39/46",
+      "auto_pct": 84.8,
+      "sections": {
+        "bash": "12/13",
+        "docker": "10/14",
+        "fedora": "9/12",
+        "git": "10/12",
+        "linux": "6/9"
+      },
+      "n": 60,
+      "jp": 47,
+      "avg": 3.683333333333333
+    },
+    "Base 1.5b": {
+      "path": "/home/masterbates/code/school/Basher/eval/judge_manual/base_1.5b.judged.json",
+      "model": "qwen2.5:1.5b",
+      "mode": "base",
+      "judge_pass": "49/60",
+      "judge_pct": 81.7,
+      "avg_correctness": 3.65,
+      "auto_pass": "40/46",
+      "auto_pct": 87.0,
+      "sections": {
+        "bash": "11/13",
+        "docker": "12/14",
+        "fedora": "11/12",
+        "git": "8/12",
+        "linux": "7/9"
+      },
+      "n": 60,
+      "jp": 49,
+      "avg": 3.65
+    },
+    "RAG 1.5b": {
+      "path": "/home/masterbates/code/school/Basher/eval/judge_manual/rag_1.5b.judged.json",
+      "model": "qwen2.5:1.5b",
+      "mode": "rag",
+      "judge_pass": "52/60",
+      "judge_pct": 86.7,
+      "avg_correctness": 3.92,
+      "auto_pass": "42/46",
+      "auto_pct": 91.3,
+      "sections": {
+        "bash": "12/13",
+        "docker": "12/14",
+        "fedora": "10/12",
+        "git": "10/12",
+        "linux": "8/9"
+      },
+      "n": 60,
+      "jp": 52,
+      "avg": 3.9166666666666665
+    }
+  }
+}

@@ -4,6 +4,7 @@
         "scraper",
         "eval",
         "retrieval",
-        "agent"
+        "agent",
+        "llm"
     ]
 }

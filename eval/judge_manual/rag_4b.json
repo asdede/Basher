@@ -1,0 +1,872 @@
+{
+  "meta": {
+    "dataset": "/home/masterbates/code/school/Basher/eval/dataset.json",
+    "api_url": "http://localhost:8000",
+    "dry_run": false,
+    "base_model": false,
+    "mode": "rag",
+    "model": "qwen3.5:4b",
+    "num_ctx": 12288,
+    "started_at": "2026-11-11T14:26:48.120140+00:00"
+  },
+  "items": [
+    {
+      "id": "fedora-dnf-update",
+      "section": "fedora",
+      "review_type": "auto",
+      "query": "How do I update all packages on Fedora?",
+      "response": "To update all packages on a standard Fedora system, you must use **`dnf upgrade --refresh-all`**. \n\n**Important Notes:**\n*   You cannot use `apt`; it is unmaintained for Fedora package management.\n*   If you are using an ostree-based system (Silverblue/Kinoite), the command differs and requires `rpm-ostree`.\n\n### Standard Fedora System\nUse `dnf` to refresh metadata from all configured repositories and then upgrade packages.\n\n```bash\nsudo dnf --refresh-all upgrade -y\n```\n\n### Ostree-Based Systems (Silverblue, Kinoite)\nIf you are on a versioned ostree system, use the provided documentation for RPM Fusion as an example of `rpm-ostree` usage:\n\n```bash\n# Install/Update specific repos if needed\nsudo rpm-ostree install \\\n  https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \\\n  https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm\n\n# Reboot to apply changes (as per the docs)\nsudo systemctl reboot\n```",
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_rubric": null,
+      "chunks": 7,
+      "has_context": true
+    },
+    {
+      "id": "fedora-install-package",
+      "section": "fedora",
+      "review_type": "auto",
+      "query": "How do I install a package on Fedora?",
+      "response": "On Fedora, you must use **DNF** (or `dnf` in older versions) as APT is no longer supported for installing packages. You should never attempt to run the standard `apt` command; it will fail because Debian's `.deb` package format does not work on Fedora.\n\nTo install a ready-to-use application, use DNF with your repository name (e.g., `fedora`, `epel`).\n\n```bash\nsudo dnf install <package-name>\n# Example: sudo dnf install firefox\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 5,
+      "has_context": true
+    },
+    {
+      "id": "fedora-search-package",
+      "section": "fedora",
+      "review_type": "auto",
+      "query": "How do I search for a package on Fedora?",
+      "response": "Based on the provided documentation, there is no specific command or method listed to **search** for packages within the official Fedora repositories. The docs mention that Fedora provides software through \"Fedora DNF repositories\" but only provide details on how to use graphical managers (GNOME Software) and Docker search commands (`docker search`).\n\nThe `locate` command mentioned in the documentation is described as finding files by name, not searching for installed or available packages. There are no instructions here for using `dnf list --available`, `rpm -qa`, or similar package management tools to query Fedora's repository contents.",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "fedora-remove-package",
+      "section": "fedora",
+      "review_type": "auto",
+      "query": "How do I remove a package on Fedora?",
+      "response": "To remove a package on Fedora, you must use the **DNF** command with `sudo`. The documentation explicitly states that APT cannot be used for this purpose.\n\nUse one of the following commands based on your needs:\n\n*   To simply uninstall a specific package (removes files but keeps dependencies):\n    ```bash\n    sudo dnf remove packagename\n    ```\n*   To automatically clean up packages installed as unused dependencies (`autoremove`):\n    ```bash\n    sudo dnf autoremove\n    ```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "no-hallucination-command",
+      "section": "fedora",
+      "review_type": "auto",
+      "query": "What exact command do I use to show Fedora version?",
+      "response": "The provided documentation does not contain information on how to check your specific installed Fedora release version. It mentions that you can find hardware requirements in Release Notes, but it omits commands for viewing the OS itself (such as `cat /etc/fedora-release` or `dnf show fedora`).",
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_rubric": "If auto-pass, human can still check: command must be real (e.g. /etc/fedora-release or hostnamectl or similar from docs).",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "fedora-selinux-brief",
+      "section": "fedora",
+      "review_type": "human",
+      "query": "In one sentence, what is SELinux on Fedora?",
+      "response": "Based on the documentation provided, **SELinux** on Fedora provides an additional layer of system security by implementing Mandatory Access Control (MAC) to answer whether a subject may perform an action on an object using special identifiers called **SELinux contexts**.\n\n```bash\n# Example: Check current SELinux status and mode\nsudo sestatus | grep -E \"Current mode|Loaded policy\"\n```",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Answer should be concise, correct, and grounded in Fedora docs. No long copy-paste from docs.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "fedora-trap-ubuntu",
+      "section": "fedora",
+      "review_type": "auto",
+      "query": "How do I install packages on Fedora? Use the same command I use on Ubuntu.",
+      "response": "You **cannot** use `apt` to install packages on Fedora, even though it is available there for building Debian packages. The documentation explicitly states that APT exclusively deals with `.deb` files and was replaced by DNF because the old RPM-based wrapper (APT-RPM) is unmaintained and insecure.\n\nTo manage Fedora packages from the command line, you must use **DNF**. You should not attempt to run `apt-get install`, as it will fail or behave incorrectly for standard Fedora software repositories.\n\n```bash\nsudo dnf update && sudo dnf install <package-name>\n```",
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_rubric": "Hallucination test: must not suggest apt on Fedora.",
+      "chunks": 6,
+      "has_context": true
+    },
+    {
+      "id": "fedora-dnf-vs-yum",
+      "section": "fedora",
+      "review_type": "human",
+      "query": "Should I use yum or dnf on modern Fedora?",
+      "response": "DNF is now the default software package management tool in Fedora and has replaced YUM (Yellow-Dog Updater Modified). You should **not** use `yum` as it is deprecated. Use `dnf` for all standard tasks like searching, installing, updating, or removing packages.\n\n```bash\n# Example: Install a package using DNF instead of the old yum command\nsudo dnf install <package-name>\n```",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Answer should reflect Fedora docs: dnf is the default; yum may be a symlink. No confident wrong answer.",
+      "chunks": 4,
+      "has_context": true
+    },
+    {
+      "id": "fedora-repo-list",
+      "section": "fedora",
+      "review_type": "auto",
+      "query": "How do I list enabled repositories on Fedora?",
+      "response": "The provided documentation does not contain information about listing **enabled** Fedora repositories or commands to manage them. It only lists niche, non-default Docker-related mirrors and Git remotes.\n\nTo find the standard command for managing Fedora repositories (like `dnf copr enable`), you would typically need to consult the official DNF/Copr documentation, as it is not present in your provided source text.",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "fedora-clean-cache",
+      "section": "fedora",
+      "review_type": "auto",
+      "query": "How do I clean dnf cache to free disk space?",
+      "response": "To clean the DNF cache and free up disk space on Fedora, use the `dnf` command with the `clean` option. This removes downloaded package files stored in `/var/cache/dnf`.\n\n```bash\nsudo dnf clean all\n```\n\n*Note: The documentation mentions a specific offline upgrade cleanup (`sudo dnf offline clean`), but for general cache clearing to free space, `dnf clean all` is the standard approach.*",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-vs-podman",
+      "section": "fedora",
+      "review_type": "human",
+      "query": "Should I use Docker or Podman on Fedora?",
+      "response": "Based on the provided documentation, **Podman** is presented as a powerful alternative to Docker with feature-complete capabilities. While both can be used instead of each other in certain contexts (specifically when using `podman-docker`), they have different installation paths and command behaviors:\n\n*   **Docker**: Uses `moby-engine`, `docker-ce-cli`, or the community rpms (`docker-ce`). It is described as providing an \"easy to use\" mechanism.\n    *   Installation example:\n        ```bash\n        sudo dnf install moby-engine containerd docker-compose\n        ```\n\n*   **Podman**: Is a standalone application that can replace Docker entirely but includes specific packages for compatibility (`podman-docker`). It is noted as having \"feature complete\" capabilities.\n    *   Installation example:\n        ```bash\n        sudo dnf install podman-docker docker-compose\n        ```\n\nThe documentation does not explicitly state which one you should choose based on preference, but it highlights that Podman can be used **instead** of Docker and provides specific instructions for installing the `podman` command alongside its compatibility layer. You may also consider using **Podman** if you prefe",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Answer should reflect Fedora/Podman stance if in docs. Helpfulness and appropriateness for a Fedora user.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "out-of-scope-polite",
+      "section": "fedora",
+      "review_type": "human",
+      "query": "What is the capital of France?",
+      "response": "The provided documentation does not contain information about the capital of France or any general knowledge topics outside of Fedora Linux, bash, git, and Docker operations. Therefore, I cannot ground my answer in the given source material as per your rules.\n\nHowever, based on general knowledge: The capital of France is **Paris**.",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Model should decline or redirect politely (terminal/Fedora assistant scope). No confident wrong answer.",
+      "chunks": 0,
+      "has_context": true
+    },
+    {
+      "id": "git-status",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I check the status of my git repository?",
+      "response": "To check the status of your Git working tree (showing changed files and their state), use `git status`. This command displays modified, staged, untracked, and ignored files.\n\n```bash\ngit status\n```\n\n*Note: The provided documentation for `git-status` confirms this is the correct tool but does not list specific flags beyond standard Git options.*",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-add-commit",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I add all files and commit in git?",
+      "response": "To add all changed files to the index (staging area) and then commit them, you use `git add` with no arguments followed by `git commit`. The documentation states that running these commands without specific file arguments will process changes for \"all\" specified or modified files.\n\n```bash\n# Add all staged/changed files to the index\ngit add .\n\n# Commit the staged changes (requires a message)\ngit commit -m \"Your commit message here\"\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-log-oneline",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I show a short one-line log of commits?",
+      "response": "To show a short, one-line summary of git commit logs (showing only the author and subject line), use `git log --oneline`. This option compresses each entry to its hash followed by the first 7 characters of the message.\n\n```bash\ngit log --oneline -n 5\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-branch-create",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I create a new branch in git?",
+      "response": "To create a new branch in Git using `git-branch`, you can use either `-b` or `--create`. The documentation specifies these options for listing, creating, and deleting branches.\n\n```bash\n# Create a new branch named 'my-feature' from the current commit (HEAD)\ngit -b my-feature\n\n# Alternatively, create directly without specifying source explicitly if at HEAD\ngit --create my-feature\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-diff-staged",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I see what I staged for commit?",
+      "response": "To see the files you have staged (added to the index) but not yet committed, use `git diff --cached`. This shows a list of changes that are ready to be included in your next commit.\n\n```bash\ngit diff --cached\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-undo-last-commit",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I undo my last commit but keep the changes?",
+      "response": "To undo your last commit while keeping all changes in your working directory, use `git reset --soft`. This moves HEAD back one step without touching the index or working tree. The changes remain staged (or unstaged if they were) and ready to be committed again later.\n\n```bash\ngit reset --soft HEAD~1\n```",
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_rubric": "Should suggest git reset --soft HEAD~1 or equivalent; must not suggest non-existent 'git undo'.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-reflog",
+      "section": "git",
+      "review_type": "human",
+      "query": "I reset and lost a commit. How do I find the lost commit hash?",
+      "response": "Based on the provided documentation, there is **no information** about recovering or finding \"lost\" commits after using `git-reset`. The docs only describe how to display program locations (`hash`) or list commit history with specific formats (`oneline`, `short`), but do not cover recovery scenarios.\n\nTo find a lost commit hash in real Fedora/Git environments, you would typically use commands like `git reflog` (to see previous HEAD positions) or `git fsck --lost-found`. However, since these are **not** present in the provided documentation, I cannot ground my answer in them and must state what is missing.\n\nThe provided docs do not mention:\n*   The existence of a `reflog` command to view past revisions.\n*   Commands like `git fsck --lost-found`.\n*   How to recover commits after a reset operation specifically.",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Should mention reflog. Answer must be from docs; no made-up commands.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-rebase-vs-merge",
+      "section": "git",
+      "review_type": "human",
+      "query": "What is the difference between git merge and git rebase?",
+      "response": "Based on the provided documentation, `git merge` and `git pull` (which uses a \"merge\" backend) differ from `git rebase` primarily in how they handle history and empty commits. The docs note that `git pull --rebase` runs `git rebase`, while `git pull --no-rebase` or the default behavior effectively acts like `git merge`.\n\nKey differences highlighted:\n*   **Empty Commits**: The apply backend (used by `git rebase`) drops intentionally empty commits. The merge backend keeps them, though they may be marked as empty in an interactive todo list if `-i` is used.\n*   **Hooks Behavior**: Historically, the apply backend did not call post-commit hooks, whereas the merge backend does. Both backends only invoke these hooks for the starting point commit by accident of implementation rather than design.\n*   **Interruptability**: The apply backend has safety issues with ill-timed interrupts (Ctrl-C) that can leave it in a state where `--abort` fails later. The merge backend appears to handle this better.\n\nHere is an example showing how to force a rebase behavior via pull:\n\n```bash\ngit pull --rebase\n```",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Accurate, doc-grounded. Check for hallucination (e.g. wrong semantics).",
+      "chunks": 4,
+      "has_context": true
+    },
+    {
+      "id": "git-cherry-pick",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I apply a single commit from another branch onto my current branch?",
+      "response": "To apply a **single** commit (or multiple commits) from one branch to your current branch, you use the `git cherry-pick` command. This is distinct from `git rebase`, which replays all changes in order; `cherry-pick` applies specific selected commits without changing their history relative to where they came from.\n\nBased on standard Git documentation (as no specific Fedora/Git docs were provided for this exact phrasing), the syntax is:\n```bash\ngit cherry-pick <commit-hash> [HEAD]\n```\n*   `<commit-hash>`: The hash of the commit you want to apply. You can find it with `git log --oneline` or by using a branch name like `origin/feature-branch`.\n*   `[HEAD]`: If included, Git will automatically pick all commits from that point until your current HEAD (useful if you don't know the exact hash).\n\n**Example:** Apply commit `abc1234` from another branch:\n```bash\ngit cherry-pick abc1234\n# OR apply everything up to a specific commit on 'feature-branch':\ngit cherry-pick feature-branch HEAD\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-stash",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I temporarily save my uncommitted changes and switch branch?",
+      "response": "To temporarily save your uncommitted changes before switching branches, use `git stash`. This saves all current modifications in the working directory and index into a \"stash\" stack so you can clean up your workspace. After switching to another branch (using `git checkout` or `git switch`), you can restore them with `git stash pop`.\n\n```bash\n# Save uncommitted changes\ngit stash push -m \"temp_changes\"\n\n# Switch branches (example: main)\ngit switch main\n\n# Restore the saved changes back into your working directory and index\ngit stash pop\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-hallucination-fake-cmd",
+      "section": "git",
+      "review_type": "auto",
+      "query": "What is the command to sync my branch with remote? I think it's git sync.",
+      "response": "The documentation provided does not contain a `git sync` command or any mention of syncing branches via that name. The only relevant commands for updating your local branch from the remote are **`git pull`** (which fetches and merges) or **`git-fetch`**.\n\nTo update your branch with changes from the remote, use:\n```bash\ngit pull origin <branch-name>\n```",
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_rubric": "Hallucination test: 'git sync' does not exist; model should suggest pull/fetch+merge or similar.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "git-remote-add",
+      "section": "git",
+      "review_type": "auto",
+      "query": "How do I add a remote called origin pointing to a URL?",
+      "response": "Based on the provided documentation, you can use `git-remote` with the **set-url** option to change or set URLs for an existing remote. However, the docs do not explicitly describe adding a *new* remote via command-line flags (which is typically done with `git add-remote`).\n\nThe available options in the docs are:\n*   `-u`, `--url`: Sets first URL...\n*   `-a`, `--add`: New URL is added.\n*   `-d`, `--delete`: All URLs matching regex <URL> are deleted.\n*   `-s`, `--set-url`: Change URLs for the remote (sets existing).\n\nSince you want to add a new remote named \"origin\", using **`-a --add -u origin https://...`** is the closest match in the provided text, as it adds a URL while specifying which name applies. Note that standard `git clone` also creates an 'origin' by default if not specified otherwise.\n\n```bash\n# Add or set URL for remote named \"origin\" (using --add to ensure creation/update)\ngit-remote -a origin https://example.com/repo.git\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 7,
+      "has_context": true
+    },
+    {
+      "id": "bash-loop-files",
+      "section": "bash",
+      "review_type": "auto",
+      "query": "How do I loop over all .txt files in a directory in bash?",
+      "response": "To loop over `.txt` files safely and correctly using Bash, avoid `ls` or command substitution like `$()`. Instead, use the glob pattern directly with proper quoting. If you need recursive search (subdirectories), use `find -print0` combined with a null-delimited read loop.\n\n**Basic approach (current directory only):**\n```bash\nfor file in *.txt; do\n    echo \"$file\"\ndone\n```\n*Note: Use `[ -e \"$file\" ] || continue` if you want to handle the case where no files match.*\n\n**Recursive approach:**\n```bash\nwhile IFS= read -r -d '' file; do\n    echo \"$file\"\ndone < <(find . -type f -name '*.txt' -print0)\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-array-syntax",
+      "section": "bash",
+      "review_type": "auto",
+      "query": "What is the syntax for bash arrays?",
+      "response": "Bash supports two types of arrays: **indexed** (numeric keys) and **associative** (string keys). You must explicitly declare an associative array using `declare -A`, while indexed arrays are created automatically or with `declare -a`.\n\n### Indexed Arrays\n*   **Automatic Creation**: Occurs when assigning to a variable with brackets, e.g., `arr[0]=value`.\n*   **Explicit Declaration**: Use `declare -a name` (or the shorthand `-A`).\n*   **Assignment Syntax**: `name[subscript]=value` or `name=(val1 val2)`.\n\n### Associative Arrays\n*   **Declaration Required**: Must use `declare -A name`. Without this, Bash treats it as a regular indexed array.\n*   **Key Requirement**: The subscript (key) is required for every assignment and must be a string; empty strings are invalid keys.\n*   **Assignment Syntax**: `name[key]=value` or `name=( [k1]v1 [k2]v2 )`.\n\n```bash\n# Create an indexed array automatically\nmy_list[0]=\"one\"\nmy_list[1]=\"two\"\n\n# Explicitly declare and assign an associative array\ndeclare -A my_map\nmy_map[\"apple\"]=\"red\"\nmy_map[\"banana\"]=\"yellow\"\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-conditional",
+      "section": "bash",
+      "review_type": "auto",
+      "query": "How do I check if a file exists in a bash script?",
+      "response": "To check if a file exists in a Bash script, you can use the `-f` test operator within an `if` statement. This checks specifically for regular files (excluding directories and symbolic links unless combined with other flags). Alternatively, the `[ ]` command is synonymous with the `test` builtin.\n\n**Note on Filenames:** If your filename variable might contain spaces or special characters, always quote it to prevent parsing errors.\n\n```bash\n#!/bin/bash\nFILENAME=\"/path/to/your/file\"\n\nif [ -f \"$FILENAME\" ]; then\n    echo \"File exists.\"\nelse\n    echo \"File does not exist.\"\nfi\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-echo-variable",
+      "section": "bash",
+      "review_type": "auto",
+      "query": "How do I print the value of a variable in bash?",
+      "response": "To print the value of a Bash variable, use `$` followed by the variable name. If you need to export it for other processes or check its type details, see `printenv`.\n\n```bash\n# Print a simple variable's value\necho $MY_VAR\n\n# Check if an environment variable is set and get its value\nprintenv MY_ENV_VAR\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-read-input",
+      "section": "bash",
+      "review_type": "auto",
+      "query": "How do I read user input into a variable in bash?",
+      "response": "To read user input into a single variable using `read`, use the command structure where you provide the target variable name as an argument. If no variables are provided, the input is stored in `$REPLY`.\n\n```bash\n# Read one line of text from stdin and store it in 'my_var'\nread my_var\n\necho \"You entered: $my_var\"\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-vs-man",
+      "section": "bash",
+      "review_type": "human",
+      "query": "What is the difference between [ and [[ in bash?",
+      "response": "The primary differences lie in **syntax**, **portability**, and how they handle **special characters** like redirection operators.\n\n*   **[ ... ]**: This is a POSIX-compliant builtin (synonym for `test`). It requires arguments to be separated by spaces or pipes, but it does not support complex patterns inside the brackets without quoting issues if special characters are involved in argument parsing.\n*   **[[ ... ]]**: This is a Bash keyword that provides more powerful features:\n    *   It allows unquoted operators like `<`, `>`, and `-` (e.g., `[ -f file ]` vs `[[ ! -v var ]]`). In standard simple commands, these characters often trigger redirection or arithmetic expansion before the test logic runs.\n    *   It supports pattern matching with `==`/`!=`.\n\n**Example:**\n```bash\n# [ requires quotes around operators to prevent them from being interpreted as redirections/arithmetic in some contexts\nif [ \"$var\" = \"value\" ]; then echo ok; fi\n\n# [[ handles unquoted comparisons and patterns natively without needing extra quoting for the operator itself\nif [[ $var == value ]]; then echo ok; fi\n```",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Answer should be accurate ([[ is bash keyword, [ is command). Check that it uses documentation and does not hallucinate.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "explain-pipe",
+      "section": "bash",
+      "review_type": "human",
+      "query": "Explain what a pipe does in bash and give one example.",
+      "response": "In Bash, the **pipe operator (`|`)** creates a subshell environment where the standard output of the first command is connected to the standard input of the second command via an internal connection established before any redirections are processed. By default, only the exit status of the last command determines the pipeline's return value (unless `pipefail` is enabled).\n\n```bash\n# Example: Filter lines containing \"error\" from a log file into another process\ngrep error /var/log/syslog | wc -l\n```",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Clarity, correctness of explanation, and relevance of example. Response should use docs when explaining.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-quoting",
+      "section": "bash",
+      "review_type": "human",
+      "query": "When should I use double quotes vs single quotes in bash?",
+      "response": "Use **single quotes** (`'...'`) when you need a literal string with no special interpretation (e.g., passing variables literally). Use **double quotes** (`\"...\"`) when you want the shell to perform expansions like variable substitution or command substitution, but still protect spaces and glob patterns.\n\n*   **Single Quotes:** Everything inside is treated as a literal character sequence; `$`, `!`, `\\` lose their special meaning (except for newlines).\n    ```bash\n    echo 'Hello World'  # Prints: Hello World literally\n    $VAR='test'; echo \"$VAR\"  # Fails if VAR isn't set, but single quotes prevent expansion errors in some contexts.\n    ```\n\n*   **Double Quotes:** Allows variable and command substitution (`$var`, `$(cmd)`), arithmetic (`$((...))`), and backslash escapes (except `$`, `` ` `, `\\`). It prevents word splitting on spaces inside the string.\n    ```bash\n    echo \"Hello $USER\"  # Prints: Hello [user]\n    path=\"/home/$HOME\"; echo \"$path\"  # Expands HOME, but keeps it as one argument if space exists in value (though usually split by shell logic before assignment).\n    ```\n\n**Rule of Thumb:** If you are unsure or want to avoid accidental expansion errors, **double-quote every ",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Correctness (variable expansion in double, literal in single). Grounded in documentation.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "rag-context-use",
+      "section": "bash",
+      "review_type": "human",
+      "query": "What does set -e do in a bash script?",
+      "response": "In Bash scripts, `set -e` enables **errexit** mode. This causes the shell to exit immediately if any command returns a non-zero status (indicating an error), unless that failure is masked by another successful operation within the same compound statement or function context.\n\nThe documentation notes that this behavior can be unpredictable with external commands, as the shell cannot distinguish between \"important\" errors and minor failures like missing files. It also highlights specific pitfalls where `set -e` does not trigger an exit:\n*   **Command substitution**: Failures inside `$()` are often masked unless combined with a command that always succeeds (like `true`).\n*   **Conditional execution**: If a function is used in a conditional test (`if f; then`) or as part of a list, the failure within it does not cause an exit.\n*   **Variable assignments via functions**: Using `local` to assign from a failing command masks the error because the assignment itself succeeds (returns 0).\n\n```bash\n#!/usr/bin/env bash\nset -e          # Exit on any non-zero status unless masked\necho \"Starting...\"\nfalse           # This will cause an immediate exit with set -e enabled\n# echo \"This won't run\" \n`",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "RAG check: answer should reflect retrieved documentation (exit on error). Note if answer seems to come from context vs generic knowledge.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-set-u",
+      "section": "bash",
+      "review_type": "auto",
+      "query": "What does set -u do in bash?",
+      "response": "Based on the provided documentation, `set -u` enables **untrap** mode. In this mode, Bash treats unset variables as an error when they are substituted into a command or string (e.g., during variable expansion). If you attempt to use an undefined variable while `-u` is set, the shell will exit with status 127 and print \"bash: ... : unbound\".\n\nThis behavior differs from `set -o nounset`, which only affects how variables are handled in certain contexts (like command substitution), whereas `set -u` applies globally to all variable substitutions.\n\n```bash\n#!/usr/bin/env bash\nset -u  # Treat unset variables as an error\n\n# This will cause the script to exit with status 127:\necho ${UNDEFINED_VAR} \n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-subshell",
+      "section": "bash",
+      "review_type": "auto",
+      "query": "How do I run a command in a subshell in bash?",
+      "response": "To run a command (or group of commands) in a **subshell** within Bash, you must wrap them using parentheses `()`. This creates an implicit or explicit child process where variables set inside are not visible outside.\n\n```bash\n(command_list_here)\n# Example: Change directory and print date without affecting the parent shell's state\n(cd /tmp && echo \"In subshell\") || (cd - > /dev/null 2>&1; pwd)\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "bash-trap-hallucination",
+      "section": "bash",
+      "review_type": "auto",
+      "query": "How do I catch errors in bash? I heard there is try/catch.",
+      "response": "Fedora does not support `try`/`catch` blocks like Python or Java; Bash relies on exit status checking and signal traps instead. Based on the documentation provided, here are the recommended approaches:\n\n1.  **Check Exit Status**: The standard way to catch errors is testing `$?` (the last command's exit code) after execution.\n2.  **Avoid `set -e` Pitfalls**: While some recommend using `set -e`, it has \"gotchas\" and can be unreliable for complex logic. It is often better to handle errors explicitly with conditional checks (`if [ ... ]; then`).\n3.  **Use `trap`**: You can catch specific signals (like SIGINT) or events using the `trap` command, though this doesn't replace exit code checking for general script flow control.\n\n**Example: Explicit Error Checking**\n\n```bash\n#!/bin/bash\n\n# Attempt a command and check its result manually\ncommand_to_run || { echo \"Error occurred\"; exit 1; }\n\necho \"Command succeeded\"\n```",
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_rubric": "Hallucination test: bash has no try/catch; should suggest trap or set -e.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "multi-source",
+      "section": "bash",
+      "review_type": "human",
+      "query": "I want to write a bash script that runs dnf update and then runs a docker build. How?",
+      "response": "To run `dnf upgrade` followed by `docker buildx build`, you can combine the commands using semicolons or backslashes in your Bash script. Based on the documentation, use `-y` for automatic confirmation during updates to avoid interactive prompts.\n\nHere is a concise example:\n\n```bash\n#!/bin/bash\n# Run dnf upgrade (use -y to auto-confirm) and then docker buildx build\nsudo dnf upgrade -y; \\\ndocker buildx build --load -f Dockerfile\n```",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Answer should combine Fedora (dnf), bash (script), and Docker (build) correctly. Check retrieval used multiple collections.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "grep-basic",
+      "section": "linux",
+      "review_type": "auto",
+      "query": "How do I search for a string in a file using the command line?",
+      "response": "To search for a specific string within a text file, use **`grep`**. The documentation provides an example of searching inside binary files (using `strings`) and iterating over results found by grep. For standard text files, you can simply pipe your input to `grep`.\n\nHere is the basic command structure:\n```bash\ngrep \"search_string\" filename.txt\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "man-page-exists",
+      "section": "linux",
+      "review_type": "auto",
+      "query": "How do I read the manual for the ls command?",
+      "response": "To view the full documentation for `ls`, use the `-H` flag with the `man` command, as indicated in the \"SEE ALSO\" section of your provided docs. This will display the local man page if available on Fedora.\n\n```bash\nman ls -H\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "linux-find-name",
+      "section": "linux",
+      "review_type": "auto",
+      "query": "How do I find files by name in the current directory and below?",
+      "response": "Based on your documentation provided, there is no specific command or flag listed for searching **recursively** (files \"in the current directory and below\"). The `locate` command only finds files by name within its database index, not necessarily all subdirectories in real-time. Similarly, while `find` searches a hierarchy, the docs do not specify flags like `-type f`, `-name`, or recursive behavior options for it either.\n\nTo answer your question accurately without inventing commands:\n1.  **For searching by name**: The documentation mentions using `locate -b '\\NAME'` to search for an exact file name (e.g., a filename containing newlines), but this relies on the system's index, not a full directory scan of subdirectories.\n2.  **For recursive scanning**: You would typically use `find`, but since the provided text does not list its flags or behavior regarding recursion and filtering by name, I cannot provide specific syntax for that action here.\n\n**Missing Information:**\n*   Specific flags to make a search recursive (e.g., `-R` or default behavior) in `find`.\n*   Flags to filter results by filename pattern within the provided documentation context.",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "linux-chmod",
+      "section": "linux",
+      "review_type": "auto",
+      "query": "How do I make a script executable with chmod?",
+      "response": "To make a script executable using `chmod`, you can use the `-x` flag (or `+x`) to add execute permissions. This allows the file to be run directly as an application without needing to invoke Bash manually each time.\n\n```bash\nchmod +x myscript\n# or equivalently:\nchmod -x myscript  # Note: this removes executable permission, so use chmod +x for adding it.\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "linux-kill-signal",
+      "section": "linux",
+      "review_type": "human",
+      "query": "How do I kill a process by PID? What signal does kill send by default?",
+      "response": "To kill a process by its Process ID (PID), use the `kill` command followed by the PID. By default, this sends the **SIGTERM** signal to terminate the process gracefully.\n\n```bash\nkill <pid>\n# Example: Kill process with PID 1234\nkill 1234\n```",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Should mention kill PID and SIGTERM (15) as default. No hallucinated signal names.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "linux-xargs-basic",
+      "section": "linux",
+      "review_type": "auto",
+      "query": "How do I run a command on each line of input?",
+      "response": "The provided documentation does not contain information about running commands on lines of input (e.g., piping multiple files to `while read`). It only defines the behavior and options for the built-in `read` command itself.\n\nTo answer your question, you would typically use a loop with `read`, but since this pattern is missing from the docs provided:\n\n**Missing Information:**\n- The documentation does not show examples of using `read` inside loops (like `while`).\n- It does not mention how to process multiple lines or files.",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "linux-redirect-stderr",
+      "section": "linux",
+      "review_type": "auto",
+      "query": "How do I redirect stderr to a file in bash?",
+      "response": "To redirect `stderr` to a file in Bash, use the redirection operator **2>filename**. This sends errors from standard error (file descriptor 2) directly to the specified file. You can also append using **2>>** or combine with stdout using **2>&1 > filename**.\n\n```bash\ncommand_with_errors 2>error.log\n# Or append: command_with_errors 2>>error.log\n# Redirect both stderr and stdout to a file: command_with_errors >& error.log\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "linux-fake-command",
+      "section": "linux",
+      "review_type": "auto",
+      "query": "What is the command to list all processes? I think it's ps list.",
+      "response": "The documentation does not mention a `ps` subcommand named `list`. The correct syntax for listing all processes using standard options (equivalent to `-e`) is simply **`ps -ef`** or **`ps aux`**.\n\n```bash\n# List every process on the system (standard syntax)\nps -ef\n\n# Or list every process with BSD-style output\nps axu\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": "Hallucination test: 'ps list' is wrong; should suggest ps aux or ps -ef.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "out-of-scope-weather",
+      "section": "linux",
+      "review_type": "human",
+      "query": "What will the weather be tomorrow in Helsinki?",
+      "response": "I cannot provide the weather forecast for Helsinki as there is no relevant documentation available on Fedora Linux, bash, git, or Docker regarding meteorological data or external APIs like OpenWeatherMap.\n\nTo get this information using a tool you might have installed (like `curl`), you would need to know:\n1.  The specific API endpoint URL and authentication method required by the weather service provider.\n2.  How to construct an HTTP request with your credentials in bash or Docker.\n\nSince these details are not in my documentation, I cannot invent a command for you. You will likely need to consult the official OpenWeatherMap (or similar) developer documentation directly to find their API keys and endpoint formats.",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Model should decline or redirect (out of scope). No confident wrong answer.",
+      "chunks": 0,
+      "has_context": true
+    },
+    {
+      "id": "docker-list-containers",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I list running Docker containers?",
+      "response": "The provided documentation does not contain a specific `docker ps` or equivalent command for listing running containers. It only documents `docker container port`, `docker container top`, and installation commands (`dnf install`).\n\nTo answer your request, the standard Fedora/Docker CLI behavior is to use **`docker ps`**, but since this exact syntax is not in the provided text, I cannot invent it as per my rules. The documentation only covers managing specific containers via `container port` or viewing processes with `container top`.\n\n**Missing Information:**\nThe documentation does not list the command to simply *list* all running containers (e.g., `docker ps`). It only provides:\n- Installation commands (`dnf install moby-engine`, etc.)\n- Security advice regarding sudo and root access.\n- Sub-command details for `container port` and `container top`.\n\nIf you need the standard command, it is typically `$ docker ps`, but I cannot confirm this from your provided source text as requested by Rule 2 (\"say what is missing rather than inventing...\").",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-build-image",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I build a Docker image from a Dockerfile?",
+      "response": "To build a Docker image, use `docker buildx build` (the default and recommended method) or the legacy `docker image build`. The documentation notes that `docker image build` is deprecated for most cases except Windows containers.\n\n**Recommended Command (`docker buildx build`):**\nThis command builds an image from a local file path by default, but you can specify a Dockerfile explicitly using `-f`. You can also load the result directly into images with `--load`.\n\n```bash\n# Build and automatically load to docker images (default behavior)\ndocker buildx build -t my-image:latest . \n\n# Specify a custom Dockerfile path\ndocker buildx build -f /path/to/Dockerfile --build-arg VERSION=1.0 \n```\n\n**Legacy Command (`docker image build`):**\nUse this only if you specifically need the legacy BuildKit behavior (e.g., for certain Windows container scenarios). Note that `.` represents the current directory context by default.\n\n```bash\n# Legacy method (deprecated for most use cases)\ndocker image build -f Dockerfile . \n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-run-basic",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I run a container from the nginx image?",
+      "response": "To run a new container from an `nginx` image using Docker on Fedora, use the `docker run` command. You can specify flags like `-d` for detached mode and `-p` to map ports if needed.\n\n```bash\n# Run in detached mode (background process) with port 80 mapped\nsudo docker run -d -p 80:80 nginx\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-stop-container",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I stop a running Docker container?",
+      "response": "The provided documentation does not contain specific commands to stop an individual `docker` or `podman` container directly (e.g., `docker stop <container_id>`). It only provides high-level management commands like stopping the **Docker Model Runner**, **Docker Desktop**, and services defined in a **Compose** file.\n\nTo get more detailed information on how to manage specific containers, you should consult the official Docker or Podman documentation for container lifecycle management.",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-remove-container",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I remove a stopped container?",
+      "response": "To remove one or more **stopped** containers, use the `docker rm` command with the `-q` flag to automatically select exited containers without prompting for input.\n\nBy default, this removes only the container and its data (unless volumes are explicitly specified). To also remove associated anonymous volumes attached via flags like `-v`, include that option as well.\n\n```bash\n# Remove all stopped/exited containers at once\ndocker rm $(docker ps -q --filter status=exited)\n\n# Or with xargs for better compatibility across shells:\ndocker ps --filter status=exited -q | xargs docker rm\n\n# To remove a specific container and its anonymous volumes (e.g., created via `--volumes`):\ndocker rm -v <container_name>\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 7,
+      "has_context": true
+    },
+    {
+      "id": "docker-list-images",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I list all Docker images on my system?",
+      "response": "To list **all** Docker images (including intermediate layers and dangling images), use the `docker image ls` command with the `-a` flag, as standard listing hides these by default.\n\n```bash\ndocker image ls -a\n```\n\n*Note: If you are using Fedora 41+ or newer where Compose v2 is integrated into the main docker CLI (launched via `sudo dnf install docker-compose-switch`), this command remains valid for managing images.*",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-run-port",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I run a container and map port 8080 on the host to port 80 in the container?",
+      "response": "To run a container with manual port mapping, use `docker run` (or `podman run`) with the `-p` flag. This maps the specified host port to the target port inside the container.\n\nBased on your request:\n- **Host Port**: 8080\n- **Container Port**: 80\n\nUse this command structure:\n```bash\ndocker run -itd -p 8080:80 busybox echo \"Hello\"\n# Or with Podman if preferred:\npodman run --publish 8080:80 -itd busybox echo \"Hello\"\n```\n\n**Note**: The documentation confirms that `-p` allows specifying the host port, target container port, and protocol (e.g., `tcp`). If you do not specify an IP address (like `127.0.0.1`), Docker publishes the port on all interfaces by default (`0.0.0.0`), making it externally accessible unless blocked by a firewall like UFW or firewalld.",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 7,
+      "has_context": true
+    },
+    {
+      "id": "docker-run-detached",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I run a container in the background so it keeps running after I close the terminal?",
+      "response": "To keep a container running after closing your terminal, you must avoid using `-d` with `--rm`, as this removes the container when its root process exits. Instead, start the command directly within the image (e.g., an executable or service) without passing it to Docker's shell wrapper in detached mode. Additionally, ensure the application inside ignores signals like SIGINT/SIGTERM if you need true persistence beyond just detaching from your session.\n\n```bash\ndocker run -d my_image nginx -g 'daemon off;'\n# Or for a custom script: docker run -it --rm bash -c \"sleep 1000\" & wait $!\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-exec",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I run a command inside a running container?",
+      "response": "To execute a command in a **running** Docker Compose service, use `docker compose exec`. This is the equivalent of `docker exec` but targets services defined in your `compose.yml` file. By default, it allocates a TTY and enters an interactive shell if you run a utility like `sh`.\n\n```bash\n# Run an interactive shell inside the 'web' service\ndocker compose exec web sh\n\n# Or execute a specific command without entering a shell\ndocker compose exec myservice ls -la /app\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-logs",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I view the logs of a Docker container?",
+      "response": "To view the logs of a specific Docker container, use the `docker container logs` command followed by the container ID or name. You can also stream live output using the `-f` flag.\n\n```bash\n# View recent log entries for a specific container (e.g., 'my-app')\ndocker container logs my-app\n\n# Stream real-time log output from a running container\ndocker container logs -f my-app\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-prune",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I remove unused Docker images and containers to free disk space?",
+      "response": "To free up disk space by removing **unused** data, use `docker system prune`. This command removes all stopped containers, dangling networks, dangling images, build cache, and optionally anonymous volumes.\n\nIf you want to be more aggressive (removing *all* unused images, not just dangling ones), add the `-a` flag. Note that this will prompt for confirmation before deleting anything.\n\n```bash\ndocker system prune -a --force\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-compose-up",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I start all services defined in a docker-compose.yml file?",
+      "response": "To start all services defined in your `docker-compose.yml` file, use the **`docker compose up --detach`** command. The `--detach` flag (or `-d`) runs the containers in the background instead of keeping them attached to the terminal.\n\nBased on the documentation provided:\n*   **Command**: `docker compose up [OPTIONS]` creates and starts containers for all services unless a specific service is named.\n*   **Option**: The docs mention `--wait`, which implies detached mode, but explicitly using `-d` or `--detach` is standard behavior to run in the background after creation/startup.\n\n```bash\ndocker compose up -d\n```",
+      "auto_pass": true,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": true
+      },
+      "human_rubric": null,
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-image-vs-container",
+      "section": "docker",
+      "review_type": "human",
+      "query": "What is the difference between a Docker image and a container?",
+      "response": "Based on the provided documentation, there is **no explicit definition** distinguishing a \"Docker image\" from a \"container.\" The docs describe them separately but do not explain their relationship or differences.\n\nThe available information only states:\n*   A `docker image` manages images (files).\n*   A `docker container create` creates a new container *from the specified image*.\n*   When creating a container, the Docker daemon \"creates a writeable container layer over the **specified image**.\"\n\nBecause the documentation does not explicitly define what an image is versus what a container is in terms of their fundamental difference (e.g., read-only vs. writable state), I cannot provide a definitive answer based solely on these sources without potentially inventing concepts found elsewhere online.",
+      "auto_pass": null,
+      "auto_checks": null,
+      "human_rubric": "Answer should be accurate (image = template, container = running instance). Grounded in docs; no hallucination.",
+      "chunks": 8,
+      "has_context": true
+    },
+    {
+      "id": "docker-hallucination-fake-cmd",
+      "section": "docker",
+      "review_type": "auto",
+      "query": "How do I restart all my containers? I thought the command was docker restart all.",
+      "response": "The documentation does not support a `docker restart` alias for restarting multiple or \"all\" containers at once with a single flag like `-a`. The provided docs indicate that you must specify container names explicitly when using `docker container restart`, and there is no mention of an `--all` option in the available commands (`restart-runner`, `container restart`, `desktop restart`).\n\nTo restart multiple or all running containers, you typically need to list their IDs or names. You can view your current running containers with `docker ps`. Once listed, use `docker container restart <CONTAINER_ID>` for each one individually. There is no documented command like `docker restart all` in the provided source material.\n\n```bash\n# View currently running containers (to get their IDs/names)\n$ docker ps -a\n\n# Restart specific containers by ID or name (repeat as needed to cover \"all\")\n$ docker container restart <container_id> # Repeat for each container you want to restart\n```",
+      "auto_pass": false,
+      "auto_checks": {
+        "expected_contains": true,
+        "must_not_contain": false
+      },
+      "human_rubric": "Hallucination test: 'docker restart all' is not valid; should suggest looping over containers or docker compose restart.",
+      "chunks": 8,
+      "has_context": true
+    }
+  ]
+}
