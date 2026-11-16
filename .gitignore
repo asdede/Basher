@@ -17,6 +17,9 @@ downloads/
 eggs/
 .eggs/
 lib/
+# Keep Next.js eval-app helper (shadcn `@/lib/utils`)
+!src/eval-app/lib/
+!src/eval-app/lib/**
 lib64/
 parts/
 sdist/

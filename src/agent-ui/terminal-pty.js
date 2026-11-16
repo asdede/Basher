@@ -15,7 +15,22 @@
 
 const os = require("os");
 const { spawn } = require("child_process");
-const pty = require("node-pty");
+
+// node-pty needs a native build (gcc-c++ + electron-rebuild). Agent tool
+ // runs use child_process.exec below, so missing pty must not crash startup.
+let pty = null;
+let ptyLoadError = null;
+try {
+  pty = require("node-pty");
+} catch (err) {
+  ptyLoadError = err;
+  console.warn(
+    "[basher-agent-ui] node-pty unavailable — interactive PTY disabled; " +
+      "agent one-shot commands still work via bash. Fix with: " +
+      "sudo dnf install gcc-c++ make && npm install && npx electron-rebuild -f -w node-pty\n" +
+      String(err && err.message ? err.message : err)
+  );
+}
 
 const sessions = new Map(); // id -> { proc, wc }
 let nextId = 1;
@@ -37,6 +52,13 @@ function defaultEnv(extra) {
 }
 
 function createSession(webContents, opts = {}) {
+  if (!pty) {
+    throw new Error(
+      "Interactive PTY unavailable (node-pty not built). " +
+        "Install gcc-c++ and rebuild, or use agent tool approval (exec) instead. " +
+        (ptyLoadError ? ptyLoadError.message : "")
+    );
+  }
   const id = String(nextId++);
   const shell = opts.shell || defaultShell();
   const args = Array.isArray(opts.args) ? opts.args : ["-l"];
